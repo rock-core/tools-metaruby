@@ -1,4 +1,4 @@
-module Syskit
+module MetaRuby
     module GUI
         module HTML
             class Button
@@ -25,7 +25,7 @@ module Syskit
 
                 def html_id; id.gsub(/[^\w]/, '_') end
 
-                def base_url; "btn://syskit#{id}" end
+                def base_url; "btn://metaruby#{id}" end
                 def toggle_url
                     if state then "#{base_url}#off"
                     else "#{base_url}#on"

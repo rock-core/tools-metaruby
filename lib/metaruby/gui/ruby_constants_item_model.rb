@@ -1,21 +1,23 @@
 module MetaRuby
     module GUI
-        # A model that lists Ruby modules that match a given predicate (given at
-        # construction time)
-        class RubyModuleModel < Qt::AbstractItemModel
+        # A Qt item model that lists Ruby modules that match a given predicate
+        # (given at construction time)
+        class RubyConstantsItemModel < Qt::AbstractItemModel
             ModuleInfo = Struct.new :id, :name, :this, :parent, :children, :row, :types
-            TypeInfo = Struct.new :name, :priority, :color
+            TypeInfo   = Struct.new :name, :priority, :color
 
             attr_reader :predicate
             attr_reader :id_to_module
             attr_reader :filtered_out_modules
             attr_reader :type_info
+            attr_accessor :title
+            attr_reader :object_paths
 
             def initialize(type_info = Hash.new, &predicate)
                 super()
                 @predicate = predicate || proc { true }
                 @type_info = type_info
-
+                @title = "Model Browser"
                 reload
             end
 
@@ -25,12 +27,23 @@ module MetaRuby
                 
                 info = discover_module(Object)
                 info.id = id_to_module.size
-                info.name = "Syskit Models"
+                info.name = title
                 update_module_type_info(info)
                 info.row = 0
                 id_to_module << info
 
+                @object_paths = Hash.new
+                generate_paths(object_paths, info, "")
+
                 emit dataChanged(Qt::ModelIndex.new, Qt::ModelIndex.new)
+            end
+
+            def generate_paths(paths, info, current)
+                info.children.each do |child|
+                    child_uri = current + '/' + child.name
+                    paths[child.this] = child_uri
+                    generate_paths(paths, child, child_uri)
+                end
             end
 
             def update_module_type_info(info)
@@ -49,7 +62,7 @@ module MetaRuby
                 children = []
                 mod_info = ModuleInfo.new(nil, nil, mod, nil, children, nil, Set.new)
 
-                is_needed = predicate.call(mod)
+                is_needed = (mod.kind_of?(Class) && mod == Object) || predicate.call(mod)
 
                 if mod.respond_to?(:constants)
                     children_modules = mod.constants.map do |child_name|
@@ -96,7 +109,7 @@ module MetaRuby
 
             def headerData(section, orientation, role)
                 if role == Qt::DisplayRole && section == 0
-                    Qt::Variant.new("Syskit Models")
+                    Qt::Variant.new(title)
                 else Qt::Variant.new
                 end
             end

@@ -1,7 +1,4 @@
-require 'qtwebkit'
-require 'syskit/gui/html'
-
-module Syskit::GUI
+module MetaRuby::GUI
     module HTML
         RESSOURCES_DIR = File.expand_path(File.dirname(__FILE__))
 
@@ -10,6 +7,7 @@ module Syskit::GUI
         class Page < Qt::Object
             attr_reader :fragments
             attr_reader :view
+            attr_accessor :object_uris
 
             class Fragment
                 attr_accessor :title
@@ -24,6 +22,14 @@ module Syskit::GUI
                     @html = html
                     @id = view_options[:id]
                     @buttons = view_options[:buttons]
+                end
+            end
+
+            def link_to(object, text = nil)
+                text = HTML.escape_html(text || object.name)
+                if uri = object_uris[object]
+                    "<a href=\"link://metaruby#{uri}\">#{text}</a>"
+                else text
                 end
             end
 
@@ -79,6 +85,7 @@ module Syskit::GUI
                 @fragments = []
                 page.link_delegation_policy = Qt::WebPage::DelegateAllLinks
                 Qt::Object.connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('pageLinkClicked(const QUrl&)'))
+                @object_uris = Hash.new
             end
 
             attr_accessor :title
@@ -114,7 +121,7 @@ module Syskit::GUI
             end
 
             def pageLinkClicked(url)
-                return if url.host != 'syskit'
+                return if url.host != 'metaruby'
 
                 if btn = find_button_by_url(url)
                     new_state = if url.fragment == 'on' then true
@@ -152,6 +159,17 @@ module Syskit::GUI
                 fragments << Fragment.new(title, html, view_options)
                 update_html
             end
+
+            # Create an item for the rendering in tables
+            def render_item(name, value = nil)
+                if value
+                    "<li><b>#{name}</b>: #{value}</li>"
+                else
+                    "<li><b>#{name}</b></li>"
+                end
+            end
+
+            signals 'updated()'
         end
     end
 end

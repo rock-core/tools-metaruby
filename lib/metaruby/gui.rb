@@ -1,3 +1,7 @@
 require 'Qt4'
-require 'metaruby/gui/ruby_module_model'
+require 'qtwebkit'
+require 'metaruby/gui/ruby_constants_item_model'
+require 'metaruby/gui/model_browser'
+require 'metaruby/gui/model_selector'
 require 'metaruby/gui/html'
+require 'metaruby/gui/exception_view'
