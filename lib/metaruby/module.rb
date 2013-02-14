@@ -105,7 +105,6 @@ module MetaRuby
         # Called when a new submodel has been created, on the newly created
         # submodel
         def setup_submodel(submodel, &block)
-            register_submodel(submodel)
             submodel.provides self
 
             if block_given?
@@ -115,6 +114,10 @@ module MetaRuby
 
         def clear_model
             super
+            if supermodel
+                supermodel.deregister_submodels([self])
+            end
+            @supermodel = nil
             parent_models.clear
         end
 
@@ -135,6 +138,7 @@ module MetaRuby
             else
                 self.supermodel = model.supermodel
             end
+            self.supermodel.register_submodel(self)
             self.parent_models |= model.parent_models
             self.parent_models << model
         end
