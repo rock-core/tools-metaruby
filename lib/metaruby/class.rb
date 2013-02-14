@@ -61,33 +61,30 @@ module MetaRuby
 
             model = self.class.new(self)
             model.permanent_model = false
-            # Note: we do not have to call #register_submodel manually here,
-            # The inherited hook does that for us
             if options[:name]
                 model.name = options[:name]
             end
-            if block_given?
-                model.apply_block(&block)
-            end
+            setup_submodel(model, &block)
             model
         end
 
         # Called at the end of the definition of a new submodel
-        def setup_submodel
-        end
+        def setup_submodel(submodel, &block)
+            register_submodel(submodel)
 
-        # Called to apply a definition block on this model
-        def apply_block(&block)
-            class_eval(&block)
+            # Note: we do not have to call #register_submodel manually here,
+            # The inherited hook does that for us
+            if block_given?
+                submodel.class_eval(&block)
+            end
         end
 
         # Registers submodels when a subclass is created
         def inherited(subclass)
             subclass.definition_location = call_stack
             super
-            register_submodel(subclass)
             subclass.permanent_model = true
-            subclass.setup_submodel
+            setup_submodel(subclass)
         end
 
         def provides(model_as_module)

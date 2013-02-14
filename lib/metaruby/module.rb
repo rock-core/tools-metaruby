@@ -36,15 +36,13 @@ module MetaRuby
         # It is usually used to create specific DSL-like methods that allow to
         # create these models
         def self.create_and_register_submodel(namespace, name, base_model, *args, &block)
-            Models.validate_model_name(name)
+            ModelAsModule.validate_constant_name(name)
 
             if namespace.const_defined_here?(name)
                 model = namespace.const_get(name)
-                if block_given?
-                    model.apply_block(&block)
-                end
+                base_model.setup_submodel(model, &block)
             else 
-                mod.const_set(name, model = base_model.new_submodel(*args, &block))
+                namespace.const_set(name, model = base_model.new_submodel(*args, &block))
                 model.permanent_model = true
             end
 
@@ -96,20 +94,24 @@ module MetaRuby
 
             model = options[:type].new
             model.extend ModelAsModule
-            model.definition_location = call_stack
-            register_submodel(model)
-
             if options[:name]
                 model.name = options[:name].dup
             end
-            model.provides self
+            model.definition_location = call_stack
+            setup_submodel(model, &block)
+            model
+        end
+
+        # Called when a new submodel has been created, on the newly created
+        # submodel
+        def setup_submodel(submodel, &block)
+            register_submodel(submodel)
+            submodel.provides self
 
             if block_given?
-                model.apply_block(&block)
+                submodel.apply_block(&block)
             end
-            model.setup_submodel
 
-            model
         end
 
         # Called to apply a model definition block on this model
@@ -119,11 +121,6 @@ module MetaRuby
         # @return [void]
         def apply_block(&block)
             class_eval(&block)
-        end
-
-        # Called when a new submodel has been created, on the newly created
-        # submodel
-        def setup_submodel
         end
 
         # Declares that this model also provides this other given model
