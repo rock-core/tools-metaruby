@@ -111,7 +111,11 @@ module MetaRuby
             if block_given?
                 submodel.apply_block(&block)
             end
+        end
 
+        def clear_model
+            super
+            parent_models.clear
         end
 
         # Called to apply a model definition block on this model

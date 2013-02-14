@@ -61,6 +61,10 @@ module MetaRuby
             end
         end
 
+        def clear_model
+            submodels.clear
+        end
+
         # Clears all registered submodels
         def clear_submodels
             children = self.submodels.find_all { |m| !m.permanent_model? }
