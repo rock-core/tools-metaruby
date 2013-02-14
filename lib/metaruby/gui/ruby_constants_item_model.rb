@@ -92,9 +92,17 @@ module MetaRuby
                             else mod.class
                             end
 
+                    current_priority = nil
                     klass.ancestors.each do |ancestor|
-                        if type_info.has_key?(ancestor)
-                            mod_info.types << ancestor
+                        if info = type_info[ancestor]
+                            current_priority ||= info.priority
+                            if current_priority < info.priority
+                                mod_info.types.clear
+                                mod_info.types << ancestor
+                                current_priority = info.priority
+                            elsif current_priority == info.priority
+                                mod_info.types << ancestor
+                            end
                         end
                     end
                 end

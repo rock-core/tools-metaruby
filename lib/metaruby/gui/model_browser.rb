@@ -77,7 +77,7 @@ module MetaRuby
             def render_model(mod)
                 page.object_uris = model_selector.object_paths
                 model, render = available_renderers.find do |model, render|
-                    mod.kind_of?(model) || (mod.kind_of?(Class) && model.kind_of?(Class) && mod <= model)
+                    mod.kind_of?(model) || (mod.kind_of?(Module) && model.kind_of?(Module) && mod <= model)
                 end
                 if model
                     title = "#{mod.name} (#{model.name})"

@@ -55,7 +55,7 @@ module MetaRuby
             def model?(obj)
                 result = type_info.any? do |model_base, _|
                     obj.kind_of?(model_base) ||
-                        (obj.kind_of?(Class) && obj <= model_base)
+                        (obj.kind_of?(Module) && obj <= model_base)
                 end
             end
 
