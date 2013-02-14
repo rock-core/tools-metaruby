@@ -62,15 +62,16 @@ module MetaRuby
         end
 
         def clear_model
+            if m = supermodel
+                m.deregister_submodels([self])
+            end
             submodels.clear
         end
 
         # Clears all registered submodels
         def clear_submodels
             children = self.submodels.find_all { |m| !m.permanent_model? }
-            if !deregister_submodels(children)
-                return
-            end
+            deregister_submodels(children)
 
             children.each do |m|
                 # Deregister non-permanent models that are registered in the
@@ -108,12 +109,8 @@ module MetaRuby
         def deregister_submodels(set)
             current_size = submodels.size
             submodels.difference!(set.to_value_set)
-            if (submodels.size != current_size)
-                if m = supermodel
-                    m.deregister_submodels(set)
-                end
-                true
-            else false
+            if m = supermodel
+                m.deregister_submodels(set)
             end
         end
     end
