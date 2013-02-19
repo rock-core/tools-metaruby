@@ -16,6 +16,11 @@ module MetaRuby
                 update_html
             end
 
+            def clear
+                @displayed_exceptions.clear
+                update_html
+            end
+
             TEMPLATE = <<-EOD
             <html>
             <link rel="stylesheet" href="file://#{File.join(RESSOURCES_DIR, 'exception_view.css')}" type="text/css" />
