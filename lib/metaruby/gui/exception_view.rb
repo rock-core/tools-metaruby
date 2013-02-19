@@ -68,22 +68,33 @@ module MetaRuby
                 end
             end
 
+            EXCEPTION_TEMPLATE = <<-EOF
+            <tr class="message">
+                <td id="<%= idx %>"><%= escape_html(reason) if reason %><pre><%= message.join("\n") %></pre>(<%= e.class %>)
+                <span class="backtrace_links">
+                    (show: <a class="backtrace_toggle_filtered" id="<%= idx %>">filtered backtrace</a>,
+                           <a class=\"backtrace_toggle_full\" id="<%= idx %>">full backtrace</a>)
+                </span>
+                </td>
+            </tr>
+            <tr class="backtrace_summary">
+                <td>from <%= escape_html(origin_file) %>:<%= origin_line %>:in <%= escape_html(origin_method.to_s) %></td>
+            </tr>
+            <tr class="backtrace" id="backtrace_filtered_<%= idx %>">
+                <td><%= render_backtrace(filtered_backtrace) %></td>
+            </tr>
+            <tr class="backtrace" id="backtrace_full_<%= idx %>">
+                <td><%= render_backtrace(full_backtrace) %></td>
+            </tr>
+            EOF
+
             def render_exception(e, reason, idx)
-                result = []
-                result << "<tr class=\"message\"><td id=\"#{idx}\">#{"#{escape_html(reason)}: " if reason}#{escape_html(e.message)}(#{e.class}) <span class=\"backtrace_links\">(show: <a class=\"backtrace_toggle_filtered\" id=\"#{idx}\">filtered backtrace</a>, <a class=\"backtrace_toggle_full\" id=\"#{idx}\">full backtrace</a>)</td></tr>"
+                message = PP.pp(e, "").split("\n").map { |line| escape_html(line) }
                 filtered_backtrace = BacktraceParser.new(Roby.filter_backtrace(e.backtrace, :force => true)).parse
+                origin_file, origin_line, origin_method = filtered_backtrace.
+                    find { |file, _| Roby.app.app_file?(file) } || filtered_backtrace.first
                 full_backtrace = BacktraceParser.new(e.backtrace).parse
-
-                origin_file, origin_line, origin_method = filtered_backtrace.find { |file, _| Roby.app.app_file?(file) } || filtered_backtrace.first
-                result << "<tr class=\"backtrace_summary\"><td>from #{escape_html(origin_file)}:#{origin_line}:in #{escape_html(origin_method.to_s)}</td></tr>"
-
-                result << "<tr class=\"backtrace\" id=\"backtrace_filtered_#{idx}\"><td>"
-                result.concat render_backtrace(filtered_backtrace)
-                result << "</td></tr>"
-                result << "<tr class=\"backtrace\" id=\"backtrace_full_#{idx}\"><td>"
-                result.concat render_backtrace(full_backtrace)
-                result << "</td></tr>"
-                result.join("\n  ")
+                ERB.new(EXCEPTION_TEMPLATE).result(binding)
             end
 
             def render_backtrace(backtrace)
@@ -95,7 +106,7 @@ module MetaRuby
                         result << "  #{escape_html(file)}:#{line}:in #{escape_html(method.to_s)}<br/>"
                     end
                 end
-                result
+                result.join("\n")
             end
 
             def escape_html(l)
