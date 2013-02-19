@@ -8,6 +8,7 @@ module MetaRuby
 
             def initialize(parent = nil)
                 super
+                @displayed_exceptions = []
             end
 
             def push(exception, reason = nil)
