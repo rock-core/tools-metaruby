@@ -25,7 +25,7 @@ module MetaRuby
         extend Attributes
 
         def self.validate_constant_name(name)
-            if name !~ /^[A-Z]\w+/
+            if name !~ /^[A-Z]\w+$/
                 raise ArgumentError, "#{name} is not a valid model name"
             end
         end
