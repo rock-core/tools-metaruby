@@ -38,13 +38,18 @@ module MetaRuby
     # ==== Attributes for which 'map' is not set
     #
     #   class A
-    #     inherited_enumerable("value", "values") do
-    #         Array.new
+    #     class << self
+    #       inherited_attribute("value", "values") do
+    #           Array.new
+    #       end
     #     end
     #   end
     #   module M
-    #     inherited_enumerable("mod") do
-    #         Array.new
+    #     class << self
+    #       extend MetaRuby::Attributes
+    #       inherited_attribute("mod") do
+    #           Array.new
+    #       end
     #     end
     #   end
     #   

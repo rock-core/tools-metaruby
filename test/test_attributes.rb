@@ -1,33 +1,42 @@
 require 'metaruby/test'
 
 class TC_Models < Test::Unit::TestCase
-    def test_inherited_enumerable_module
+    def test_inherited_attribute_module
         m = Module.new do
-            inherited_enumerable(:signature, :signatures) { Array.new }
+            class << self
+                extend MetaRuby::Attributes
+                inherited_attribute(:signature, :signatures) { Array.new }
+            end
         end
         k = Class.new do
             include m
-            inherited_enumerable(:child_attribute) { Array.new }
+            class << self
+                extend MetaRuby::Attributes
+                inherited_attribute(:child_attribute) { Array.new }
+            end
         end
 
         # Add another attribute *after* k has been defined
-        m.class_eval do
-            inherited_enumerable(:mapped, :map, :map => true) { Hash.new }
+        m.singleton_class.class_eval do
+            inherited_attribute(:mapped, :map, :map => true) { Hash.new }
         end
-        check_inherited_enumerable(m, k)
+        check_inherited_attribute(m, k)
     end
 
-    def test_inherited_enumerable_class
+    def test_inherited_attribute_class
 	a = Class.new do
-	    inherited_enumerable(:signature, :signatures) { Array.new }
-	    inherited_enumerable(:mapped, :map, :map => true) { Hash.new }
+            class << self
+                extend MetaRuby::Attributes
+                inherited_attribute(:signature, :signatures) { Array.new }
+                inherited_attribute(:mapped, :map, :map => true) { Hash.new }
+            end
 	end
 	b = Class.new(a) do
 	    include Module.new # include an empty module between a and b to check that the module
 			       # is skipped transparently
-	    inherited_enumerable(:child_attribute) { Array.new }
+	    singleton_class.inherited_attribute(:child_attribute) { Array.new }
 	end
-	check_inherited_enumerable(a, b)
+	check_inherited_attribute(a, b)
 	
 	# Test for singleton class support
 	object = b.new
@@ -36,7 +45,7 @@ class TC_Models < Test::Unit::TestCase
 	assert_equal([:in_singleton], object.singleton_class.signatures)
     end
 
-    def check_inherited_enumerable(base, derived)
+    def check_inherited_attribute(base, derived)
 	assert(base.respond_to?(:each_signature))
 	assert(base.respond_to?(:signatures))
 	assert(!base.respond_to?(:has_signature?))
@@ -70,12 +79,15 @@ class TC_Models < Test::Unit::TestCase
         assert_equal([[:base, 10], [:overriden, 15], [:derived, 25]].to_set, derived.enum_for(:each_mapped, nil, true).to_set)
     end
 
-    def test_inherited_enumerable_non_mapping_promote
+    def test_inherited_attribute_non_mapping_promote
 	a = Class.new do
-            def self.promote_value(v)
-                v
+            class << self
+                extend MetaRuby::Attributes
+                def promote_value(v)
+                    v
+                end
+                inherited_attribute(:value, :values) { Array.new }
             end
-	    inherited_enumerable(:value, :values) { Array.new }
 	end
         b = flexmock(Class.new(a), 'b')
         c = flexmock(Class.new(b), 'c')
@@ -101,12 +113,15 @@ class TC_Models < Test::Unit::TestCase
         assert_equal [100, 110, 12, 13, 2, 3], d.each_value.to_a
     end
 
-    def test_inherited_enumerable_mapping_promote
+    def test_inherited_attribute_mapping_promote
 	a = Class.new do
-            def self.promote_value(key, v)
+            class << self
+                extend MetaRuby::Attributes
+                def promote_value(key, v)
+                end
+                def name; 'A' end
+                inherited_attribute(:value, :values, :map => true) { Hash.new }
             end
-            def self.name; 'A' end
-	    inherited_enumerable(:value, :values, :map => true) { Hash.new }
 	end
         b = Class.new(a)
         c = Class.new(b)
@@ -128,11 +143,14 @@ class TC_Models < Test::Unit::TestCase
         assert_equal [['d', 5], ['e', 6], ['b', 15], ['c', 16], ['a', 10]], d.each_value.to_a
     end
 
-    def test_inherited_enumerable_mapping_promote_non_uniq
+    def test_inherited_attribute_mapping_promote_non_uniq
 	a = Class.new do
-            def self.promote_value(key, v)
+            class << self
+                extend MetaRuby::Attributes
+                def promote_value(key, v)
+                end
+                inherited_attribute(:value, :values, :map => true) { Hash.new }
             end
-	    inherited_enumerable(:value, :values, :map => true) { Hash.new }
 	end
         b = flexmock(Class.new(a), 'b')
         c = flexmock(Class.new(b), 'c')
@@ -161,11 +179,14 @@ class TC_Models < Test::Unit::TestCase
         assert_equal [['d', 5], ['e', 6], ['b', 12], ['c', 13], ['d', 14], ['a', 10], ['b', 11]], d.each_value(nil, false).to_a
     end
 
-    def test_inherited_enumerable_mapping_promote_with_key_uniq
+    def test_inherited_attribute_mapping_promote_with_key_uniq
 	a = Class.new do
-            def self.promote_value(key, v)
+            class << self
+                extend MetaRuby::Attributes
+                def promote_value(key, v)
+                end
+                inherited_attribute(:value, :values, :map => true) { Hash.new }
             end
-	    inherited_enumerable(:value, :values, :map => true) { Hash.new }
 	end
         b = flexmock(Class.new(a), 'b')
         c = flexmock(Class.new(b), 'c')
@@ -180,11 +201,14 @@ class TC_Models < Test::Unit::TestCase
         assert_equal [12], d.each_value('b', true).to_a
     end
 
-    def test_inherited_enumerable_mapping_promote_with_key_non_uniq
+    def test_inherited_attribute_mapping_promote_with_key_non_uniq
 	a = Class.new do
-            def self.promote_value(key, v)
+            class << self
+                extend MetaRuby::Attributes
+                def promote_value(key, v)
+                end
+                inherited_attribute(:value, :values, :map => true) { Hash.new }
             end
-	    inherited_enumerable(:value, :values, :map => true) { Hash.new }
 	end
         b = flexmock(Class.new(a), 'b')
         c = flexmock(Class.new(b), 'c')
