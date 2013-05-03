@@ -141,6 +141,17 @@ module MetaRuby::GUI
             slots 'pageLinkClicked(const QUrl&)'
             signals 'linkClicked(const QUrl&)', 'buttonClicked(const QString&,bool)'
 
+            # Adds a fragment to this page, with the given title and HTML
+            # content
+            #
+            # The added fragment is enclosed in a div block to allow for dynamic
+            # replacement
+            # 
+            # @option view_options [String] id the ID of the fragment. If given,
+            #   and if an existing fragment with the same ID exists, the new
+            #   fragment replaces the existing one, and the view is updated
+            #   accordingly.
+            #
             def push(title, html, view_options = Hash.new)
                 if id = view_options[:id]
                     # Check whether we should replace the existing content or
