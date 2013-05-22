@@ -2,18 +2,49 @@ module MetaRuby
     module GUI
         # Widget that allows to browse the currently available models and
         # display information about them
+        #
+        # It contains a model selection widget, which lists all available models
+        # and allows to select them, and a visualization pane in which the
+        # corresponding model visualizations are rendered as HTML
+        #
+        # The object display itself is delegated to rendering objects. These
+        # objects must respond to:
+        #
+        #   #enable: enable this renderer. This is called so that the rendering
+        #     object listens to relevant Qt signals if it has e.g. the ability to
+        #     interact with the user through HTML buttons
+        #   #disable: disables this renderer. This is called so that the rendering
+        #     object can stop listening to relevant Qt signals if it has e.g. the ability to
+        #     interact with the user through HTML buttons
+        #   #clear: clear existing data
+        #   #render(model): render the given model
+        #
         class ModelBrowser < Qt::Widget
-            # Visualization and selection of models in the Ruby constant
-            # hierarchy
+            # @return [ModelSelector] the widget that lists available models and
+            #   allows to select them
             attr_reader :model_selector
-            attr_reader :exception_view
-            attr_reader :available_renderers
-            attr_reader :display
+            # @return [Page] the page object that handles compositing the
+            #   results of different rendering objects, as well as the ability
+            #   to e.g. handle buttons
             attr_reader :page
-            attr_reader :btn_reload_models
+            # @return [{Model=>Object}] set of rendering objects that are
+            #   declared. The Model is a class or module that represents the
+            #   set of models that the renderer can handle.
+            #
+            #   Do not modify directly, use {#register_type} instead
+            attr_reader :available_renderers
+            # @return [Qt::WebView] the HTML view widget
+            attr_reader :display
+            # @return [ExceptionView] view that allows to display errors to the
+            #   user
+            attr_reader :exception_view
+            # @return the currently active renderer
             attr_reader :current_renderer
-
+            # @return [Array<Exception>] the set of exceptions that should be
+            #   displayed in {#exception_view}
             attr_reader :registered_exceptions
+            # @return [Qt::PushButton] button that causes model reloading
+            attr_reader :btn_reload_models
 
             def initialize(main = nil)
                 super
@@ -40,6 +71,24 @@ module MetaRuby
                 add_central_widgets(splitter)
             end
 
+            # Registers a certain kind of model as well as the information
+            # needed to display it
+            #
+            # It registers the given type on the model browser so that it gets
+            # displayed there.
+            #
+            # @param [Model] type the base model class for the models that are
+            #   considered here
+            # @param [Class] rendering_class a class from which a relevant
+            #   rendering object can be created. The generated instances must
+            #   follow the rules described in the documentation of
+            #   {ModelBrowser}
+            # @param [String] name the name that should be used for this
+            #   category
+            # @param [Integer] priority the priority of this category. Some
+            #   models might be submodels of various types at the same time (as
+            #   e.g. when both a model and its supermodel are registered here).
+            #   The one with the highest priority will be used.
             def register_type(type, rendering_class, name, priority = 0)
                 model_selector.register_type(type, name, priority)
                 render = rendering_class.new(page)
@@ -47,6 +96,7 @@ module MetaRuby
                 connect(render, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
             end
 
+            # Sets up the widgets that form the central part of the browser
             def add_central_widgets(splitter)
                 @model_selector = ModelSelector.new
                 splitter.add_widget(model_selector)
@@ -63,6 +113,9 @@ module MetaRuby
                 end
             end
 
+            # Sets the page object that should be used for rendering
+            #
+            # @param [Page] page the new page object
             def page=(page)
                 page.connect(SIGNAL('linkClicked(const QUrl&)')) do |url|
                     if url.scheme == "link"
@@ -74,6 +127,11 @@ module MetaRuby
                 @page = page
             end
 
+            # Call to render the given model
+            #
+            # @param [Model] mod the model that should be rendered
+            # @raises [ArgumentError] if there is no view available for the
+            #   given model
             def render_model(mod)
                 page.object_uris = model_selector.object_paths
                 model, render = available_renderers.find do |model, render|
@@ -97,11 +155,13 @@ module MetaRuby
                 end
             end
 
+            # Add an exception to be rendered on {#exception_view}
             def register_exception(e)
                 @registered_exceptions << e
                 update_exceptions
             end
 
+            # Updates {#exception_view} from the set of registered exceptions
             def update_exceptions
                 exception_view.exceptions = registered_exceptions
             end

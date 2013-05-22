@@ -22,6 +22,7 @@ module MetaRuby
         include Registration
         extend Attributes
 
+        # The call stack at the point of definition of this model
         attr_accessor :definition_location
 
         # Sets a name on this model
@@ -68,6 +69,7 @@ module MetaRuby
             model
         end
 
+        # Called to apply a DSL block on this model
         def apply_block(&block)
             class_eval(&block)
         end
@@ -91,6 +93,7 @@ module MetaRuby
             setup_submodel(subclass)
         end
 
+        # Call to declare that this model provides the given model-as-module
         def provides(model_as_module)
             include model_as_module
         end
