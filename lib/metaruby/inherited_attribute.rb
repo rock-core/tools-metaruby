@@ -1,102 +1,4 @@
 module MetaRuby
-    # Defines an attribute as being enumerable in the class instance and in the
-    # whole class inheritance hierarchy.  More specifically, it defines a
-    # <tt>each_#{name}(&iterator)</tt> instance method and a <tt>each_#{name}(&iterator)</tt>
-    # class method which iterates (in order) on 
-    # - the instance #{name} attribute
-    # - the singleton class #{name} attribute
-    # - the class #{name} attribute
-    # - the superclass #{name} attribute
-    # - the superclass' superclass #{name} attribute
-    # ...
-    #
-    # This method can be used on modules, in which case the module is used as if 
-    # it was part of the inheritance hierarchy.
-    #
-    # The +name+ option defines the enumeration method name (+value+ will
-    # define a +each_value+ method). +attribute_name+ defines the attribute
-    # name. +init+ is a block called to initialize the attribute. 
-    # Valid options in +options+ are: 
-    # map:: 
-    #   If true, the attribute should respond to +[]+. In that case, the
-    #   enumeration method is each_value(key = nil, uniq = false) If +key+ is
-    #   given, we iterate on the values given by <tt>attribute[key]</tt>. If
-    #   +uniq+ is true, the enumeration will yield at most one value for each
-    #   +key+ found (so, if both +key+ and +uniq+ are given, the enumeration
-    #   yields at most one value). See the examples below
-    # enum_with:: the enumeration method of the enumerable, if it is not +each+
-    #
-    # === Example
-    # Let's define some classes and look at the ancestor chain
-    #
-    #   class A;  end
-    #   module M; end
-    #   class B < A; include M end
-    #   A.ancestors # => [A, Object, Kernel]
-    #   B.ancestors # => [B, M, A, Object, Kernel]
-    #
-    # ==== Attributes for which 'map' is not set
-    #
-    #   class A
-    #     class << self
-    #       inherited_attribute("value", "values") do
-    #           Array.new
-    #       end
-    #     end
-    #   end
-    #   module M
-    #     class << self
-    #       extend MetaRuby::Attributes
-    #       inherited_attribute("mod") do
-    #           Array.new
-    #       end
-    #     end
-    #   end
-    #   
-    #   A.values << 1 # => [1]
-    #   B.values << 2 # => [2]
-    #   M.mod << 1 # => [1]
-    #   b = B.new 
-    #   class << b
-    #       self.values << 3 # => [3]
-    #       self.mod << 4 # => [4]
-    #   end
-    #   M.mod << 2 # => [1, 2]
-    #   
-    #   A.enum_for(:each_value).to_a # => [1]
-    #   B.enum_for(:each_value).to_a # => [2, 1]
-    #   b.singleton_class.enum_for(:each_value).to_a # => [3, 2, 1]
-    #   b.singleton_class.enum_for(:each_mod).to_a # => [4, 1, 2]
-    #
-    # ==== Attributes for which 'map' is set
-    #
-    #   class A
-    #     inherited_enumerable("mapped", "map", :map => true) do
-    #         Hash.new { |h, k| h[k] = Array.new }
-    #     end
-    #   end
-    #   
-    #   A.map['name'] = 'A' # => "A"
-    #   A.map['universe'] = 42
-    #   B.map['name'] = 'B' # => "B"
-    #   B.map['half_of_it'] = 21
-    #   
-    # Let's see what happens if we don't specify the key option.  
-    #   A.enum_for(:each_mapped).to_a # => [["name", "A"], ["universe", 42]]
-    # If the +uniq+ option is set (the default), we see only B's value for 'name'
-    #   B.enum_for(:each_mapped).to_a # => [["half_of_it", 21], ["name", "B"], ["universe", 42]]
-    # If the +uniq+ option is not set, we see both values for 'name'. Note that
-    # since 'map' is a Hash, the order of keys in one class is not guaranteed.
-    # Nonetheless, we have the guarantee that values from B appear before
-    # those from A
-    #   B.enum_for(:each_mapped, nil, false).to_a # => [["half_of_it", 21], ["name", "B"], ["name", "A"], ["universe", 42]]
-    #
-    #
-    # Now, let's see how 'key' behaves
-    #   A.enum_for(:each_mapped, 'name').to_a # => ["A"]
-    #   B.enum_for(:each_mapped, 'name').to_a # => ["B"]
-    #   B.enum_for(:each_mapped, 'name', false).to_a # => ["B", "A"]
-    #
     module Attributes
         def included(mod)
             if mod.kind_of?(Module)
@@ -104,6 +6,135 @@ module MetaRuby
             end
         end
 
+        def inherited_single_value_attribute(name, accessor_name = name, &filter)
+            dsl_attribute_name = "__dsl_attribute__#{name}"
+            ivar = "@#{dsl_attribute_name}"
+            promote = method_defined?("promote_#{name}")
+            define_method(accessor_name) do |*args|
+                if args.empty?
+                    value = 
+                        if 
+                            instance_variable_get(ivar)
+                        elsif superclass.respond_to?(name)
+                            superclass.send(name)
+                        elsif init
+                            v = init.call
+                            instance_variable_set(ivar, v)
+                            return v
+                        else return nil
+                        end
+                    if promote
+                        return send("promote_#{name}", v)
+                    else v
+                    end
+                else
+                    send(dsl_attribute_name, *args)
+                end
+            end
+            nil
+        end
+
+        # Defines an attribute that holds a set of values, and defines the
+        # relevant methods and accessors to allow accessing it in a way that
+        # makes sense when embedded in a model hierarchy
+        #
+        # More specifically, it defines a <tt>each_#{name}(&iterator)</tt>
+        # instance method and a <tt>each_#{name}(&iterator)</tt>
+        # class method which iterates (in order) on 
+        # - the instance #{name} attribute
+        # - the singleton class #{name} attribute
+        # - the class #{name} attribute
+        # - the superclass #{name} attribute
+        # - the superclass' superclass #{name} attribute
+        # ...
+        #
+        # This method can be used on modules, in which case the module is used as if 
+        # it was part of the inheritance hierarchy.
+        #
+        # The +name+ option defines the enumeration method name (+value+ will
+        # define a +each_value+ method). +attribute_name+ defines the attribute
+        # name. +init+ is a block called to initialize the attribute. 
+        # Valid options in +options+ are: 
+        # map:: 
+        #   If true, the attribute should respond to +[]+. In that case, the
+        #   enumeration method is each_value(key = nil, uniq = false) If +key+ is
+        #   given, we iterate on the values given by <tt>attribute[key]</tt>. If
+        #   +uniq+ is true, the enumeration will yield at most one value for each
+        #   +key+ found (so, if both +key+ and +uniq+ are given, the enumeration
+        #   yields at most one value). See the examples below
+        # enum_with:: the enumeration method of the enumerable, if it is not +each+
+        #
+        # === Example
+        # Let's define some classes and look at the ancestor chain
+        #
+        #   class A;  end
+        #   module M; end
+        #   class B < A; include M end
+        #   A.ancestors # => [A, Object, Kernel]
+        #   B.ancestors # => [B, M, A, Object, Kernel]
+        #
+        # ==== Attributes for which 'map' is not set
+        #
+        #   class A
+        #     class << self
+        #       inherited_attribute("value", "values") do
+        #           Array.new
+        #       end
+        #     end
+        #   end
+        #   module M
+        #     class << self
+        #       extend MetaRuby::Attributes
+        #       inherited_attribute("mod") do
+        #           Array.new
+        #       end
+        #     end
+        #   end
+        #   
+        #   A.values << 1 # => [1]
+        #   B.values << 2 # => [2]
+        #   M.mod << 1 # => [1]
+        #   b = B.new 
+        #   class << b
+        #       self.values << 3 # => [3]
+        #       self.mod << 4 # => [4]
+        #   end
+        #   M.mod << 2 # => [1, 2]
+        #   
+        #   A.enum_for(:each_value).to_a # => [1]
+        #   B.enum_for(:each_value).to_a # => [2, 1]
+        #   b.singleton_class.enum_for(:each_value).to_a # => [3, 2, 1]
+        #   b.singleton_class.enum_for(:each_mod).to_a # => [4, 1, 2]
+        #
+        # ==== Attributes for which 'map' is set
+        #
+        #   class A
+        #     inherited_enumerable("mapped", "map", :map => true) do
+        #         Hash.new { |h, k| h[k] = Array.new }
+        #     end
+        #   end
+        #   
+        #   A.map['name'] = 'A' # => "A"
+        #   A.map['universe'] = 42
+        #   B.map['name'] = 'B' # => "B"
+        #   B.map['half_of_it'] = 21
+        #   
+        # Let's see what happens if we don't specify the key option.  
+        #   A.enum_for(:each_mapped).to_a # => [["name", "A"], ["universe", 42]]
+        # If the +uniq+ option is set (the default), we see only B's value for 'name'
+        #   B.enum_for(:each_mapped).to_a # => [["half_of_it", 21], ["name", "B"], ["universe", 42]]
+        # If the +uniq+ option is not set, we see both values for 'name'. Note that
+        # since 'map' is a Hash, the order of keys in one class is not guaranteed.
+        # Nonetheless, we have the guarantee that values from B appear before
+        # those from A
+        #   B.enum_for(:each_mapped, nil, false).to_a # => [["half_of_it", 21], ["name", "B"], ["name", "A"], ["universe", 42]]
+        #
+        #
+        # Now, let's see how 'key' behaves
+        #   A.enum_for(:each_mapped, 'name').to_a # => ["A"]
+        #   B.enum_for(:each_mapped, 'name').to_a # => ["B"]
+        #   B.enum_for(:each_mapped, 'name', false).to_a # => ["B", "A"]
+        #
         def inherited_attribute(name, attribute_name = name, options = Hash.new, &init) # :nodoc:
             # Set up the attribute accessor
             attribute(attribute_name, &init)
@@ -167,6 +198,8 @@ module MetaRuby
             end
         end
 
+        # Helper class that defines the iteration method for inherited_attribute
+        # when :map is set and there is not promotion method
         def self.map_without_promotion(name, attribute_name, options)
             code, file, line =<<-EOF, __FILE__, __LINE__+1
             def each_#{name}(key = nil, uniq = true)
@@ -215,6 +248,8 @@ module MetaRuby
             return code, file, line
         end
 
+        # Helper class that defines the iteration method for inherited_attribute
+        # when :map is not set and there is no promotion method
         def self.nomap_without_promotion(name, attribute_name, options)
             code, file, line =<<-EOF, __FILE__, __LINE__+1
             def each_#{name}
@@ -237,6 +272,8 @@ module MetaRuby
             return code, file, line
         end
 
+        # Helper class that defines the iteration method for inherited_attribute
+        # when :map is set and there is a promotion method
         def self.map_with_promotion(name, attribute_name, options)
             code, file, line =<<-EOF, __FILE__, __LINE__+1
             def each_#{name}(key = nil, uniq = true)
@@ -300,6 +337,8 @@ module MetaRuby
             return code, file, line
         end
 
+        # Helper class that defines the iteration method for inherited_attribute
+        # when :map is not set and there is a promotion method
         def self.nomap_with_promotion(name, attribute_name, options)
             code, file, line =<<-EOF, __FILE__, __LINE__+1
             def each_#{name}
