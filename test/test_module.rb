@@ -19,6 +19,7 @@ describe MetaRuby::ModelAsModule do
             flexmock(root_m).should_receive(:supermodel).once.
                 and_return(root = flexmock)
             submodel = Module.new { extend MetaRuby::ModelAsModule }
+            root.should_receive(:register_submodel).with(submodel).once
             submodel.provides root_m
             assert_equal root, submodel.supermodel
         end
