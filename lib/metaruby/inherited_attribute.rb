@@ -71,11 +71,27 @@ module MetaRuby
                     ancestors.unshift self
                 end
 
+                has_value = false
                 for klass in ancestors
                     if klass.instance_variable_defined?(:#{ivar})
+                        has_value = true
                         value = klass.instance_variable_get(:#{ivar})
                         break
                     end
+                end
+
+                if !has_value && respond_to?(:#{method_name}_default)
+                    # Look for default
+                    has_value = true
+                    value = send(:#{method_name}_default).call
+                    base = nil
+                    for klass in ancestors
+                        if !klass.respond_to?(:#{method_name}_default)
+                            break
+                        end
+                        base = klass
+                    end
+                    base.instance_variable_set :#{ivar}, value
                 end
                 value
             end

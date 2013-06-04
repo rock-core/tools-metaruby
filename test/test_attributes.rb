@@ -241,26 +241,24 @@ describe MetaRuby::Attributes do
                 @base = Class.new do
                     class << self
                         extend MetaRuby::Attributes
-                        def promote_var(value); value * 2 end
                         inherited_single_value_attribute(:var) { 10 }
                     end
                 end
-                @sub = Class.new(base) do
-                    class << self
-                        def promote_var(value); value * 4 end
-                    end
-                end
-                @subsub = Class.new(sub) do
-                    class << self
-                        def promote_var(value); value - 10 end
-                    end
-                end
+                @sub = Class.new(base)
+                @subsub = Class.new(sub)
             end
 
-            it "should apply the promotion method at each level" do
+            it "should be accessible at each level" do
                 assert_equal 10, base.var
-                assert_equal 40, sub.var
-                assert_equal 30, subsub.var
+                assert_equal 10, sub.var
+                assert_equal 10, subsub.var
+            end
+
+            it "should set only the bottom class" do
+                assert_equal 10, base.var
+                sub.var(nil)
+                assert_equal nil, sub.var
+                assert_equal nil, subsub.var
             end
         end
 
@@ -287,6 +285,34 @@ describe MetaRuby::Attributes do
 
             it "should apply the promotion method at each level" do
                 base.var(10)
+                assert_equal 10, base.var
+                assert_equal 40, sub.var
+                assert_equal 30, subsub.var
+            end
+        end
+
+        describe "with default with promotion" do
+            before do
+                @base = Class.new do
+                    class << self
+                        extend MetaRuby::Attributes
+                        def promote_var(value); value * 2 end
+                        inherited_single_value_attribute(:var) { 10 }
+                    end
+                end
+                @sub = Class.new(base) do
+                    class << self
+                        def promote_var(value); value * 4 end
+                    end
+                end
+                @subsub = Class.new(sub) do
+                    class << self
+                        def promote_var(value); value - 10 end
+                    end
+                end
+            end
+
+            it "should apply the promotion method at each level" do
                 assert_equal 10, base.var
                 assert_equal 40, sub.var
                 assert_equal 30, subsub.var
