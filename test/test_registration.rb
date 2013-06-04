@@ -77,7 +77,7 @@ describe MetaRuby::Registration do
             @sub_model = model_stub(base_model)
         end
         it "deregisters the non-permanent models" do
-            flexmock(base_model).should_receive(:deregister_submodels).with([sub_model]).once
+            base_model.should_receive(:deregister_submodels).with([sub_model]).once
             base_model.clear_submodels
         end
         it "does not call #clear_submodels in submodels if there are no models to clear" do
