@@ -1,28 +1,6 @@
 require 'metaruby/test'
 
 class TC_Models < Test::Unit::TestCase
-    def test_inherited_attribute_module
-        m = Module.new do
-            class << self
-                extend MetaRuby::Attributes
-                inherited_attribute(:signature, :signatures) { Array.new }
-            end
-        end
-        k = Class.new do
-            include m
-            class << self
-                extend MetaRuby::Attributes
-                inherited_attribute(:child_attribute) { Array.new }
-            end
-        end
-
-        # Add another attribute *after* k has been defined
-        m.singleton_class.class_eval do
-            inherited_attribute(:mapped, :map, :map => true) { Hash.new }
-        end
-        check_inherited_attribute(m, k)
-    end
-
     def test_inherited_attribute_class
 	a = Class.new do
             class << self
