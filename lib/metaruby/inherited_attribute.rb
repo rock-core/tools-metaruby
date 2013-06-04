@@ -1,37 +1,108 @@
+require 'utilrb/module/dsl_attribute'
 module MetaRuby
     module Attributes
-        def included(mod)
-            if mod.kind_of?(Module)
-                mod.extend Attributes
+        InheritedAttribute = Struct.new :single_value, :name, :accessor_name, :init
+
+        # The set of inherited attributes defined on this object
+        # @return [Array<InheritedAttribute>]
+        attribute(:inherited_attributes) { Array.new }
+
+        # Tests for the existence of an inherited attribute by its name
+        #
+        # @param [String] name the attribute name
+        # @return [Boolean] true if there is an attribute defined with the given
+        #   name
+        def inherited_attribute_defined?(name)
+            inherited_attributes.any? { |ih| ih.name == name }
+        end
+
+        # Returns the inherited attribute definition that matches the given name
+        #
+        # @param [String] name the attribute name
+        # @return [InheritedAttribute] the attribute definition
+        # @raise [ArgumentError] if no attribute with that name exists
+        def inherited_attribute_by_name(name)
+            if ih = inherited_attributes.find { |ih| ih.name == name }
+                return ih
+            else raise ArgumentError, "#{self} has no inherited attribute called #{name}"
             end
         end
 
-        def inherited_single_value_attribute(name, accessor_name = name, &filter)
+        def included(mod)
+            mod.extend Attributes
+        end
+
+        # Defines an attribute that holds at most a single value
+        #
+        # @param [String] name the attribute name
+        # @return [InheritedAttribute] the attribute definition
+        # @raise [ArgumentError] if no attribute with that name exists
+        def inherited_single_value_attribute(name, &filter)
             dsl_attribute_name = "__dsl_attribute__#{name}"
             ivar = "@#{dsl_attribute_name}"
-            promote = method_defined?("promote_#{name}")
-            define_method(accessor_name) do |*args|
-                if args.empty?
-                    value = 
-                        if 
-                            instance_variable_get(ivar)
-                        elsif superclass.respond_to?(name)
-                            superclass.send(name)
-                        elsif init
-                            v = init.call
-                            instance_variable_set(ivar, v)
-                            return v
-                        else return nil
-                        end
-                    if promote
-                        return send("promote_#{name}", v)
-                    else v
-                    end
-                else
+            dsl_attribute(dsl_attribute_name, &filter)
+
+            promotion_method = "promote_#{name}"
+            if method_defined?(promotion_method)
+                define_single_value_with_promotion("#{dsl_attribute_name}_get", promotion_method, ivar)
+            else
+                define_single_value_without_promotion("#{dsl_attribute_name}_get", ivar)
+            end
+            define_method(name) do |*args|
+                if args.empty? # Getter call
+                    send("#{dsl_attribute_name}_get")
+                else # Setter call, delegate to the dsl_attribute implementation
                     send(dsl_attribute_name, *args)
                 end
             end
             nil
+        end
+
+        # Helper method for {#inherited_single_value_attribute} in case there
+        # are no promotion method(s) defined
+        def define_single_value_without_promotion(method_name, ivar)
+            class_eval <<-EOF, __FILE__, __LINE__+1
+            def #{method_name}
+                ancestors = self.ancestors
+                if ancestors.first != self
+                    ancestors.unshift self
+                end
+
+                for klass in ancestors
+                    if klass.instance_variable_defined?(:#{ivar})
+                        value = klass.instance_variable_get(:#{ivar})
+                        break
+                    end
+                end
+                value
+            end
+            EOF
+        end
+
+        # Helper method for {#inherited_single_value_attribute} in case there is
+        # a promotion method defined
+        def define_single_value_with_promotion(method_name, promotion_method_name, ivar)
+            class_eval <<-EOF, __FILE__, __LINE__+1
+            def #{method_name}
+                ancestors = self.ancestors
+                if ancestors.first != self
+                    ancestors.unshift self
+                end
+
+                promotions = []
+                for klass in ancestors
+                    if klass.instance_variable_defined?(:#{ivar})
+                        has_value = true
+                        value = klass.instance_variable_get(:#{ivar})
+                        break
+                    end
+                    promotions.unshift(klass) if klass.respond_to?("#{promotion_method_name}")
+                end
+                if has_value
+                    promotions.inject(value) { |v, klass| klass.#{promotion_method_name}(v) }
+                end
+            end
+            EOF
         end
 
         # Defines an attribute that holds a set of values, and defines the

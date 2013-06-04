@@ -228,5 +228,64 @@ class TC_Models < Test::Unit::TestCase
     end
 end
 
+describe MetaRuby::Attributes do
+    describe "#inherited_single_value_attribute" do
+        attr_reader :base, :sub, :subsub
+        describe "plain" do
+            before do
+                @base = Class.new do
+                    class << self
+                        extend MetaRuby::Attributes
+                        inherited_single_value_attribute :var
+                    end
+                end
+                @sub = Class.new(base)
+                @subsub = Class.new(sub)
+            end
 
+            it "should set the value if given an argument" do
+                base.var(10)
+                assert_equal 10, base.var
+            end
+            it "should return the value from the parent model if not set" do
+                base.var(10)
+                assert_equal 10, sub.var
+            end
+            it "should return nil if the instance variable is explicitly set to nil" do
+                base.var 10
+                sub.var nil
+                assert_equal nil, subsub.var
+            end
+        end
+
+        describe "with promotion" do
+            before do
+                @base = Class.new do
+                    class << self
+                        extend MetaRuby::Attributes
+                        def promote_var(value); value * 2 end
+                        inherited_single_value_attribute(:var)
+                    end
+                end
+                @sub = Class.new(base) do
+                    class << self
+                        def promote_var(value); value * 4 end
+                    end
+                end
+                @subsub = Class.new(sub) do
+                    class << self
+                        def promote_var(value); value - 10 end
+                    end
+                end
+            end
+
+            it "should apply the promotion method at each level" do
+                base.var(10)
+                assert_equal 10, base.var
+                assert_equal 40, sub.var
+                assert_equal 30, subsub.var
+            end
+        end
+    end
+end
 
