@@ -37,10 +37,13 @@ module MetaRuby
         # @param [String] name the attribute name
         # @return [InheritedAttribute] the attribute definition
         # @raise [ArgumentError] if no attribute with that name exists
-        def inherited_single_value_attribute(name, &filter)
+        def inherited_single_value_attribute(name, &default_value)
             dsl_attribute_name = "__dsl_attribute__#{name}"
             ivar = "@#{dsl_attribute_name}"
-            dsl_attribute(dsl_attribute_name, &filter)
+            dsl_attribute(dsl_attribute_name)
+            if default_value
+                define_method("#{dsl_attribute_name}_get_default") { default_value }
+            end
 
             promotion_method = "promote_#{name}"
             if method_defined?(promotion_method)
@@ -98,6 +101,23 @@ module MetaRuby
                     end
                     promotions.unshift(klass) if klass.respond_to?("#{promotion_method_name}")
                 end
+                if !has_value && respond_to?(:#{method_name}_default)
+                    # Look for default
+                    has_value = true
+                    value = send(:#{method_name}_default).call
+                    base = nil
+                    promotions.clear
+                    for klass in ancestors
+                        if !klass.respond_to?(:#{method_name}_default)
+                            break
+                        end
+                        base = klass
+                        promotions.unshift(klass) if klass.respond_to?(:#{promotion_method_name})
+                    end
+                    promotions.shift
+                    base.instance_variable_set :#{ivar}, value
+                end
+
                 if has_value
                     promotions.inject(value) { |v, klass| klass.#{promotion_method_name}(v) }
                 end
