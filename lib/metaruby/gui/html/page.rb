@@ -2,6 +2,13 @@ module MetaRuby::GUI
     module HTML
         RESSOURCES_DIR = File.expand_path(File.dirname(__FILE__))
 
+        # A class that can be used as the webpage container for the Page class
+        class HTMLPage
+            attr_accessor :html
+
+            def main_frame; self end
+        end
+
         # A helper class that gives us easy-to-use page elements on a
         # Qt::WebView
         class Page < Qt::Object
@@ -75,16 +82,23 @@ module MetaRuby::GUI
             </body>
             EOD
 
-            def page
-                view.page
-            end
+            attr_reader :page
 
-            def initialize(view)
-                @view = view
+            def initialize(page)
+                begin
+                    @page = page.page
+                rescue NoMethodError
+                    @page = page
+                end
+                page = self.page
+
                 super()
                 @fragments = []
-                page.link_delegation_policy = Qt::WebPage::DelegateAllLinks
-                Qt::Object.connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('pageLinkClicked(const QUrl&)'))
+
+                if page.kind_of?(Qt::WebPage)
+                    page.link_delegation_policy = Qt::WebPage::DelegateAllLinks
+                    Qt::Object.connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('pageLinkClicked(const QUrl&)'))
+                end
                 @object_uris = Hash.new
             end
 
@@ -92,7 +106,7 @@ module MetaRuby::GUI
 
             # Removes all existing displays
             def clear
-                view.html = ""
+                page.main_frame.html = ""
                 fragments.clear
             end
 
@@ -103,7 +117,7 @@ module MetaRuby::GUI
             end
 
             def update_html
-                view.html = ERB.new(PAGE_TEMPLATE).result(binding)
+                page.main_frame.html = ERB.new(PAGE_TEMPLATE).result(binding)
             end
 
             def find_button_by_url(url)
