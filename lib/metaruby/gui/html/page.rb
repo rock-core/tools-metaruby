@@ -195,6 +195,14 @@ module MetaRuby::GUI
             end
 
             signals 'updated()'
+
+            # Renders an object to HTML using a given rendering class
+            def self.to_html(object, renderer)
+                webpage = HTMLPage.new
+                page = new(webpage)
+                renderer.new(page).render(object)
+                webpage.html
+            end
         end
     end
 end
