@@ -190,7 +190,7 @@ module MetaRuby::GUI
                 if value
                     "<li><b>#{name}</b>: #{value}</li>"
                 else
-                    "<li><b>#{name}</b></li>"
+                    "<li>#{name}</li>"
                 end
             end
 
