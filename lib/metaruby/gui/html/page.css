@@ -23,3 +23,14 @@ table-caption {margin: 0.5em 0px 1.0em 30px; padding: 0px; clear: both; text-ali
 .body-header-list li table td {margin: 0px; padding: 0px 7px 0px 7px; border: none; text-align: left;}
 .body-header-list li table th {margin: 0px; padding: 0px; border: none; empty-cells: show; text-align: left; 	}
 
+code {
+padding:5px;
+background:#e4e4ff;
+color:#222;
+border:2px solid #ddd;
+margin-top: 1em;
+margin-bottom: 1em;
+margin-left: 0em;
+margin-right: 0em;
+font-family: monospace;
+}
