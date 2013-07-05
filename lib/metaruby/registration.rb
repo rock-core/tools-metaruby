@@ -112,6 +112,7 @@ module MetaRuby
             if m = supermodel
                 m.deregister_submodels(set)
             end
+            current_size != submodels.size
         end
     end
 end

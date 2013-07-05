@@ -55,11 +55,12 @@ describe MetaRuby::Registration do
             flexmock(parent_model).should_receive(:deregister_submodels).with([sub_model]).once
             base_model.deregister_submodels([sub_model])
         end
-        it "does not call the parent model's deregister method if there are not models to deregister" do
+        it "always calls the parent model's deregister method" do
             parent_model = flexmock
             flexmock(base_model).should_receive(:supermodel).and_return(parent_model)
-            flexmock(parent_model).should_receive(:deregister_submodels).with([sub_model]).never
-            base_model.deregister_submodels([flexmock])
+            flexmock(base_model).should_receive(:deregister_submodels).with([sub_model]).pass_thru
+            flexmock(parent_model).should_receive(:deregister_submodels).with([sub_model]).once
+            base_model.deregister_submodels([sub_model])
         end
         it "returns true if a model got deregistered" do
             flexmock(base_model).should_receive(:supermodel).and_return(nil).once
@@ -76,13 +77,15 @@ describe MetaRuby::Registration do
             @base_model = model_stub
             @sub_model = model_stub(base_model)
         end
-        it "deregisters the non-permanent models" do
-            base_model.should_receive(:deregister_submodels).with([sub_model]).once
+        it "deregisters the non-permanent models, and calls #clear_submodels on them" do
+            base_model.should_receive(:deregister_submodels).with([sub_model]).once.pass_thru
+            sub_model.should_receive(:clear_submodels).once
             base_model.clear_submodels
         end
-        it "does not call #clear_submodels in submodels if there are no models to clear" do
-            flexmock(sub_model).should_receive(:permanent_model?).and_return(true).once
-            flexmock(sub_model).should_receive(:clear_submodels).never
+        it "does not deregister the permanent models, but still calls #clear_submodels on them" do
+            base_model.should_receive(:deregister_submodels).with([]).once
+            sub_model.should_receive(:permanent_model?).and_return(true).once
+            sub_model.should_receive(:clear_submodels).once
             base_model.clear_submodels
         end
         it "calls #clear_submodels on non-permanent submodels" do
