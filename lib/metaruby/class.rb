@@ -78,8 +78,6 @@ module MetaRuby
         def setup_submodel(submodel, &block)
             register_submodel(submodel)
 
-            # Note: we do not have to call #register_submodel manually here,
-            # The inherited hook does that for us
             if block_given?
                 submodel.apply_block(&block)
             end
