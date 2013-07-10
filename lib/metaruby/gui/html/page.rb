@@ -63,6 +63,11 @@ module MetaRuby::GUI
             });
             </script>
             <body>
+            <%= html_body %>
+            </body>
+            EOD
+
+            PAGE_BODY_TEMPLATE = <<-EOD
             <% if title %>
             <h1><%= title %></h1>
             <% end %>
@@ -79,7 +84,6 @@ module MetaRuby::GUI
             </div>
             <% end %>
             <% end %>
-            </body>
             EOD
 
             attr_reader :page
@@ -117,7 +121,15 @@ module MetaRuby::GUI
             end
 
             def update_html
-                page.main_frame.html = ERB.new(PAGE_TEMPLATE).result(binding)
+                page.main_frame.html = html
+            end
+
+            def html
+                ERB.new(PAGE_TEMPLATE).result(binding)
+            end
+
+            def html_body
+                ERB.new(PAGE_BODY_TEMPLATE).result(binding)
             end
 
             def find_button_by_url(url)
@@ -201,7 +213,14 @@ module MetaRuby::GUI
                 webpage = HTMLPage.new
                 page = new(webpage)
                 renderer.new(page).render(object)
-                webpage.html
+                page.html
+            end
+
+            def self.to_html_body(object, renderer)
+                webpage = HTMLPage.new
+                page = new(webpage)
+                renderer.new(page).render(object)
+                page.html_body
             end
         end
     end
