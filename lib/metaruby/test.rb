@@ -13,6 +13,7 @@ if ENV['TEST_ENABLE_COVERAGE'] == '1'
     end
 end
 
+require 'test/unit'
 require 'metaruby'
 require 'flexmock/test_unit'
 require 'minitest/spec'
