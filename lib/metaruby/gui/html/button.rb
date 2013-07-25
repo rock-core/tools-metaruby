@@ -9,6 +9,7 @@ module MetaRuby
 
                 def initialize(id, options = Hash.new)
                     options = Kernel.validate_options options,
+                        :text => nil,
                         :on_text => "#{id} (on)", :off_text => "#{id} (off)",
                         :state => false
 
@@ -18,9 +19,15 @@ module MetaRuby
                         id = id[0..-2]
                     end
                     @id = id
-                    @on_text = options[:on_text]
-                    @off_text = options[:off_text]
-                    @state = options[:state]
+                    if options[:text]
+                        @on_text = options[:text]
+                        @off_text = options[:text]
+                        @state = true
+                    else
+                        @on_text = options[:on_text]
+                        @off_text = options[:off_text]
+                        @state = options[:state]
+                    end
                 end
 
                 def html_id; id.gsub(/[^\w]/, '_') end
