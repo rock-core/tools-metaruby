@@ -34,59 +34,34 @@ module MetaRuby::GUI
 
             def link_to(object, text = nil)
                 text = HTML.escape_html(text || object.name)
-                if uri = object_uris[object]
+                if uri = uri_for(object)
                     "<a href=\"link://metaruby#{uri}\">#{text}</a>"
                 else text
                 end
             end
 
-            PAGE_TEMPLATE = <<-EOD
-            <html>
-            <link rel="stylesheet" href="file://#{File.join(RESSOURCES_DIR, 'page.css')}" type="text/css" />
-            <script type="text/javascript" src="file://#{File.join(RESSOURCES_DIR, 'jquery.min.js')}"></script>
-            </html>
-            <script type="text/javascript">
-            $(document).ready(function () {
-                $("tr.backtrace").hide()
-                $("a.backtrace_toggle_filtered").click(function (event) {
-                        var eventId = $(this).attr("id");
-                        $("#backtrace_full_" + eventId).hide();
-                        $("#backtrace_filtered_" + eventId).toggle();
-                        event.preventDefault();
-                        });
-                $("a.backtrace_toggle_full").click(function (event) {
-                        var eventId = $(this).attr("id");
-                        $("#backtrace_full_" + eventId).toggle();
-                        $("#backtrace_filtered_" + eventId).hide();
-                        event.preventDefault();
-                        });
-            });
-            </script>
-            <body>
-            <%= html_body %>
-            </body>
-            EOD
+            PAGE_TEMPLATE = File.join(RESSOURCES_DIR, "page.rhtml")
+            PAGE_BODY_TEMPLATE = File.join(RESSOURCES_DIR, "page_body.rhtml")
+            LIST_TEMPLATE = File.join(RESSOURCES_DIR, "list.rhtml")
+            ASSETS = %w{page.css jquery.min.js jquery.selectfilter.js}
 
-            PAGE_BODY_TEMPLATE = <<-EOD
-            <% if title %>
-            <h1><%= title %></h1>
-            <% end %>
-            <% fragments.each do |fragment| %>
-            <% if fragment.title %>
-                <h2><%= fragment.title %></h2>
-            <% end %>
-            <%= HTML.render_button_bar(fragment.buttons) %>
-            <% if fragment.id %>
-            <div id="<%= fragment.id %>">
-            <% end %>
-            <%= fragment.html %>
-            <% if fragment.id %>
-            </div>
-            <% end %>
-            <% end %>
-            EOD
+            def self.copy_assets_to(target_dir, assets = ASSETS)
+                FileUtils.mkdir_p target_dir
+                assets.each do |file|
+                    FileUtils.cp File.join(RESSOURCES_DIR, file), target_dir
+                end
+            end
+
+            def load_template(path)
+                @templates[path] ||= ERB.new(File.read(path))
+                @templates[path].filename = path
+                @templates[path]
+            end
 
             attr_reader :page
+
+            attr_accessor :page_name
+            attr_accessor :title
 
             def initialize(page)
                 begin
@@ -98,6 +73,7 @@ module MetaRuby::GUI
 
                 super()
                 @fragments = []
+                @templates = Hash.new
 
                 if page.kind_of?(Qt::WebPage)
                     page.link_delegation_policy = Qt::WebPage::DelegateAllLinks
@@ -106,7 +82,9 @@ module MetaRuby::GUI
                 @object_uris = Hash.new
             end
 
-            attr_accessor :title
+            def uri_for(object)
+                object_uris[object]
+            end
 
             # Removes all existing displays
             def clear
@@ -124,12 +102,16 @@ module MetaRuby::GUI
                 page.main_frame.html = html
             end
 
-            def html
-                ERB.new(PAGE_TEMPLATE).result(binding)
+            def html(options = Hash.new)
+                options = Kernel.validate_options options, :ressource_dir => RESSOURCES_DIR
+                ressource_dir = options[:ressource_dir]
+                load_template(PAGE_TEMPLATE).result(binding)
             end
 
-            def html_body
-                ERB.new(PAGE_BODY_TEMPLATE).result(binding)
+            def html_body(options = Hash.new)
+                options = Kernel.validate_options options, :ressource_dir => RESSOURCES_DIR
+                ressource_dir = options[:ressource_dir]
+                load_template(PAGE_BODY_TEMPLATE).result(binding)
             end
 
             def find_button_by_url(url)
@@ -206,21 +188,30 @@ module MetaRuby::GUI
                 end
             end
 
+            def render_list(title, items, options = Hash.new)
+                options, push_options = Kernel.filter_options options, :filter => false
+                html = load_template(LIST_TEMPLATE).result(binding)
+                push(title, html, push_options)
+            end
+
             signals 'updated()'
+
+            def self.to_html_page(object, renderer, options = Hash.new)
+                webpage = HTMLPage.new
+                page = new(webpage)
+                renderer.new(page).render(object, options)
+                page
+            end
 
             # Renders an object to HTML using a given rendering class
             def self.to_html(object, renderer, options = Hash.new)
-                webpage = HTMLPage.new
-                page = new(webpage)
-                renderer.new(page).render(object, options)
-                page.html
+                html_options, options = Kernel.filter_options options, :ressource_dir => RESSOURCES_DIR
+                to_html_page(object, renderer, options).html(html_options)
             end
 
             def self.to_html_body(object, renderer, options = Hash.new)
-                webpage = HTMLPage.new
-                page = new(webpage)
-                renderer.new(page).render(object, options)
-                page.html_body
+                html_options, options = Kernel.filter_options options, :ressource_dir => RESSOURCES_DIR
+                to_html_page(object, renderer, options).html_body(html_options)
             end
         end
     end

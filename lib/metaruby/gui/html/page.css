@@ -1,5 +1,5 @@
 body {font-family: arial, sans-serif; font-size: 12px; }
-h1 {margin: 0px 0px 10px 0px; padding: 0px 0px 2px 0px; color: rgb(88,144,168); font-weight: bold; font-size: 200%;}
+h1 {margin: 40px 0px 10px 0px; padding: 0px 0px 2px 0px; color: rgb(88,144,168); font-weight: bold; font-size: 300%;}
 h2 {width: 500px; margin: 40px 0px 10px 0px; padding: 0px 0px 2px 0px; border-bottom: solid 3px rgb(88,144,168); color: rgb(88,144,168); font-weight: bold; font-size: 160%;}
 table {clear: left; margin: 0.5em 0px 0.2em 30px; border: solid 1px rgb(150,150,150); empty-cells: show; border-collapse: collapse; background-color: rgb(233,232,244);}
 table tr {margin: 0px; padding: 0px;}
@@ -36,3 +36,16 @@ font-family: monospace;
 }
 .doc-above { margin-bottom: -.3em; padding-bottom: 0em; font-style: italic; }
 .doc-above p { margin-top: .1em; margin-bottom: .1em; }
+
+div.short_doc {
+    margin-top: .2em;
+    background-color: rgb(238,237,249);
+    padding: .2em;
+    width: 100%;
+}
+div.short_doc td.short_doc {
+    font-style: italic;
+}
+div.list_alt {
+    background-color: rgb(230,228,249);
+}
