@@ -40,6 +40,25 @@ module MetaRuby
             # @return [Array<Exception>] set of exceptions raised during the
             #   last rendering step
             attr_reader :registered_exceptions
+            # @return [Array<Model,[String]>] the browsing history, as either
+            #   direct modules or module name path (suitable to be given to
+            #   #select_by_path)
+            attr_reader :history
+            # @return [Integer] the index of the current link in the history
+            attr_reader :history_index
+
+            # A Page object with a #link_to method that is suitable for the
+            # model browser
+            class Page < HTML::Page
+                def uri_for(object)
+                    if (obj_name = object.name) && (obj_name =~ /^[\w:]+$/)
+                        path = obj_name.split("::")
+                        "/" + path.join("/")
+                    else super
+                    end
+                end
+            end
+
 
             def initialize(main = nil)
                 super
@@ -64,6 +83,9 @@ module MetaRuby
                 menu_layout.add_widget(btn_reload_models)
                 menu_layout.add_stretch(1)
                 update_exceptions
+
+                @history = Array.new
+                @history_index = -1
 
                 add_central_widgets(splitter)
             end
@@ -97,13 +119,30 @@ module MetaRuby
                 splitter.add_widget(model_selector)
 
                 # Create a central stacked layout
-                @display = Qt::WebView.new
+                display = @display = Qt::WebView.new
+                browser = self
+                display.singleton_class.class_eval do
+                    define_method :contextMenuEvent do |event|
+                        menu = Qt::Menu.new(self)
+                        act = page.action(Qt::WebPage::Back)
+                        act.enabled = true
+                        menu.add_action act
+                        connect(act, SIGNAL(:triggered), browser, SLOT(:back))
+                        act = page.action(Qt::WebPage::Forward)
+                        act.enabled = true
+                        connect(act, SIGNAL(:triggered), browser, SLOT(:forward))
+                        menu.add_action act
+                        menu.popup(event.globalPos)
+                        event.accept
+                    end
+                end
                 splitter.add_widget(display)
                 splitter.set_stretch_factor(1, 2)
-                self.page = HTML::Page.new(display)
+                self.page = Page.new(display.page)
 
                 model_selector.connect(SIGNAL('model_selected(QVariant)')) do |mod|
                     mod = mod.to_ruby
+                    push_to_history(mod)
                     render_model(mod)
                 end
             end
@@ -116,7 +155,8 @@ module MetaRuby
                 page.connect(SIGNAL('linkClicked(const QUrl&)')) do |url|
                     if url.scheme == "link"
                         path = url.path
-                        select_by_path(*path.split('/')[1..-1])
+                        path = path.split('/')[1..-1]
+                        select_by_path(*path)
                     end
                 end
                 connect(page, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
@@ -155,17 +195,54 @@ module MetaRuby
 
             # (see ModelSelector#select_by_module)
             def select_by_path(*path)
+                push_to_history(path)
                 model_selector.select_by_path(*path)
             end
 
             # (see ModelSelector#select_by_module)
             def select_by_module(model)
+                push_to_history(model)
                 model_selector.select_by_module(model)
             end
 
             # (see ModelSelector#current_selection)
             def current_selection
                 model_selector.current_selection
+            end
+
+            # Pushes one element in the history
+            #
+            # If the history index is not at the end, the remainder is discarded
+            def push_to_history(object)
+                return if object == history[history_index]
+
+                @history = history[0, history_index + 1]
+                history << object
+                @history_index = history.size - 1
+            end
+
+            # Go forward in the browsing history
+            def forward
+                return if history_index == history.size - 1
+                @history_index += 1
+                select_by_history_element(history[history_index])
+            end
+
+            # Go back in the browsing history
+            def back
+                return if history_index <= 0
+                @history_index -= 1
+                select_by_history_element(history[history_index])
+            end
+
+            slots :back, :forward
+
+            # Selects a given model based on a value in the history
+            def select_by_history_element(h)
+                if h.respond_to?(:to_ary)
+                    select_by_path(*h)
+                else select_by_module(h)
+                end
             end
         end
     end
