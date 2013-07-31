@@ -57,7 +57,7 @@ module MetaRuby
         #
         # @return [Module] a subclass of self
         def new_submodel(options = Hash.new, &block)
-            options = Kernel.validate_options options,
+            options, submodel_options = Kernel.filter_options options,
                 :name => nil
 
             model = self.class.new(self)
@@ -65,7 +65,7 @@ module MetaRuby
             if options[:name]
                 model.name = options[:name]
             end
-            setup_submodel(model, &block)
+            setup_submodel(model, submodel_options, &block)
             model
         end
 
@@ -75,7 +75,7 @@ module MetaRuby
         end
 
         # Called at the end of the definition of a new submodel
-        def setup_submodel(submodel, &block)
+        def setup_submodel(submodel, options = Hash.new, &block)
             register_submodel(submodel)
 
             # Note: we do not have to call #register_submodel manually here,

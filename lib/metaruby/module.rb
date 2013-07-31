@@ -40,7 +40,7 @@ module MetaRuby
 
             if namespace.const_defined_here?(name)
                 model = namespace.const_get(name)
-                base_model.setup_submodel(model, &block)
+                base_model.setup_submodel(model, *args, &block)
             else 
                 namespace.const_set(name, model = base_model.new_submodel(*args, &block))
                 model.permanent_model = true
@@ -89,7 +89,7 @@ module MetaRuby
         # @option options [Class] :type (self.class) the type of the submodel
         #
         def new_submodel(options = Hash.new, &block)
-            options = Kernel.validate_options options,
+            options, submodel_options = Kernel.filter_options options,
                 :name => nil, :type => self.class
 
             model = options[:type].new
@@ -98,13 +98,13 @@ module MetaRuby
                 model.name = options[:name].dup
             end
             model.definition_location = call_stack
-            setup_submodel(model, &block)
+            setup_submodel(model, submodel_options, &block)
             model
         end
 
         # Called when a new submodel has been created, on the newly created
         # submodel
-        def setup_submodel(submodel, &block)
+        def setup_submodel(submodel, options = Hash.new, &block)
             submodel.provides self
 
             if block_given?

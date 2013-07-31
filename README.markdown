@@ -303,3 +303,10 @@ subclassing a model class or by using
 create_ang_register_submodel} are marked as
 {MetaRuby::Registration#permanent_model? permanent models} and therefore
 protected from removal by #clear_submodel
+
+# Adding options to the submodel creation process
+
+If you need to customize the submodel creation process, for instance by
+providing options to the subprocess, do so by overloading #setup_submodel. Do
+NOT overload #new_submodel unless you really know what you are doing, and pass
+the options as an option hash
