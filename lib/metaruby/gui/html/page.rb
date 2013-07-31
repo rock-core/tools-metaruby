@@ -64,14 +64,8 @@ module MetaRuby::GUI
             attr_accessor :title
 
             def initialize(page)
-                begin
-                    @page = page.page
-                rescue NoMethodError
-                    @page = page
-                end
-                page = self.page
-
                 super()
+                @page = page
                 @fragments = []
                 @templates = Hash.new
 
