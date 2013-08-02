@@ -13,6 +13,7 @@ require 'metaruby/class'
 # the Ruby type system as its meta-metamodel
 require 'utilrb/logger'
 module MetaRuby
+    LIB_DIR = File.expand_path('metaruby', File.dirname(__FILE__))
     extend Logger::Root('MetaRuby', Logger::WARN)
 end
 
