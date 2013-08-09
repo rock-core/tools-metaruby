@@ -48,6 +48,16 @@ module MetaRuby
                 return superclass
             end
         end
+        
+        # This flag is used to notify {#inherited} that it is being called from
+        # new_submodel, in which case it should not 
+        #
+        # This mechanism works as:
+        #   - inherited(subclass) is called right away after class.new is called
+        #     (so, we don't have to take recursive calls into account)
+        #   - it is a TLS, so thread safe
+        #
+        FROM_NEW_SUBMODEL_TLS = :metaruby_class_new_called_from_new_submodel
 
         # Creates a new submodel of +self+
         #
@@ -60,6 +70,7 @@ module MetaRuby
             options, submodel_options = Kernel.filter_options options,
                 :name => nil
 
+            Thread.current[FROM_NEW_SUBMODEL_TLS] = true
             model = self.class.new(self)
             model.permanent_model = false
             if options[:name]
@@ -85,10 +96,15 @@ module MetaRuby
 
         # Registers submodels when a subclass is created
         def inherited(subclass)
+            from_new_submodel = Thread.current[FROM_NEW_SUBMODEL_TLS]
+            Thread.current[FROM_NEW_SUBMODEL_TLS] = false
+
             subclass.definition_location = call_stack
             super
             subclass.permanent_model = true
-            setup_submodel(subclass)
+            if !from_new_submodel
+                setup_submodel(subclass)
+            end
         end
 
         # Call to declare that this model provides the given model-as-module

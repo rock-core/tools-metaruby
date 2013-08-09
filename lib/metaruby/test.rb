@@ -48,6 +48,9 @@ module MetaRuby
         end
 
         def teardown
+            if defined? FlexMock
+                flexmock_teardown
+            end
             # Teardown code for all the tests
         end
     end
