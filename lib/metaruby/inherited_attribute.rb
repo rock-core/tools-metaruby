@@ -216,8 +216,10 @@ module MetaRuby
         # ==== Attributes for which 'map' is set
         #
         #   class A
-        #     inherited_enumerable("mapped", "map", :map => true) do
-        #         Hash.new { |h, k| h[k] = Array.new }
+        #     class << self
+        #       inherited_attribute("mapped", "map", :map => true) do
+        #           Hash.new { |h, k| h[k] = Array.new }
+        #       end
         #     end
         #   end
         #   
