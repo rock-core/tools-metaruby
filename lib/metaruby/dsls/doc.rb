@@ -5,24 +5,27 @@ module MetaRuby
         #
         # @param [#===] file_match an object (typically a regular expression)
         #   that matches the file name in which the DSL is being used
-        # @param [#===,nil] trigger_method an object (typically a regular expression)
+        # @param [#===] trigger_method an object (typically a regular expression)
         #   that matches the name of the method that initiates the creation of
         #   the element whose documentation we are looking for.
         # @return [String,nil] the parsed documentation, or nil if there is no
         #   documentation
-        def self.parse_documentation_block(file_match, trigger_method = nil)
-            matched_method = !trigger_method
+        def self.parse_documentation_block(file_match, trigger_method = /.*/)
+            last_method_matched = false
             call_stack.each do |call|
-                if matched_method && (file_match === call[0])
+                this_method_matched =
+                    if trigger_method === call[2].to_s
+                        true
+                    elsif call[2] == :method_missing
+                        last_method_matched
+                    else
+                        false
+                    end
+
+                if !this_method_matched && last_method_matched && (file_match === call[0])
                     return parse_documentation_block_at(call[0], call[1])
                 end
-                if trigger_method
-                    if trigger_method === call[2]
-                        matched_method = true
-                    elsif call[2] != :method_missing
-                        matched_method = false
-                    end
-                end
+                last_method_matched = this_method_matched
             end
             nil
         end
