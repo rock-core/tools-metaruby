@@ -40,6 +40,19 @@ module MetaRuby::GUI
                 end
             end
 
+            # Converts the given text from markdown to HTML and generates the
+            # necessary <div> context.
+            #
+            # @return [String] the HTML snippet that should be used to render
+            #   the given text as main documentation
+            def self.main_doc(text)
+                "<div class=\"doc-main\">#{Kramdown::Document.new(text).to_html}</div>"
+            end
+
+            def main_doc(text)
+                self.class.main_doc(text)
+            end
+
             PAGE_TEMPLATE = File.join(RESSOURCES_DIR, "page.rhtml")
             PAGE_BODY_TEMPLATE = File.join(RESSOURCES_DIR, "page_body.rhtml")
             LIST_TEMPLATE = File.join(RESSOURCES_DIR, "list.rhtml")

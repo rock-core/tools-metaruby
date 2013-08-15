@@ -25,6 +25,9 @@ module MetaRuby
         # The call stack at the point of definition of this model
         attr_accessor :definition_location
 
+        # @return [String] set or get the documentation text for this model
+        inherited_single_value_attribute :doc
+
         # Sets a name on this model
         #
         # Only use this on 'anonymous models', i.e. on models that are not

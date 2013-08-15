@@ -24,6 +24,9 @@ module MetaRuby
         include Registration
         extend Attributes
 
+        # @return [String] set or get the documentation text for this model
+        inherited_single_value_attribute :doc
+
         def self.validate_constant_name(name)
             if name !~ /^[A-Z]\w+$/
                 raise ArgumentError, "#{name} is not a valid model name"
