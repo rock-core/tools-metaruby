@@ -1,5 +1,6 @@
 require 'Qt4'
 require 'qtwebkit'
+require 'kramdown'
 require 'metaruby/gui/html'
 require 'metaruby/gui/ruby_constants_item_model'
 require 'metaruby/gui/rendering_manager'
