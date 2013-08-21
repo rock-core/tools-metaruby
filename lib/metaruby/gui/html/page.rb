@@ -195,10 +195,25 @@ module MetaRuby::GUI
                 end
             end
 
+            # Render a list of objects into HTML and push it to this page
+            #
+            # @param [String,nil] title the section's title. If nil, no new
+            #   section is created
+            # @param [Array<Object>,Array<(Object,Hash)>] items the list
+            #   items, one item per line. If a hash is provided, it is used as
+            #   HTML attributes for the lines
+            # @param [Hash] options
+            # @option options [Boolean] filter (false) if true, a filter is
+            #   added at the top of the page. You must provide a :id option for
+            #   the list for this to work
+            # @option (see #push)
             def render_list(title, items, options = Hash.new)
-                options, push_options = Kernel.filter_options options, :filter => false
+                options, push_options = Kernel.filter_options options, :filter => false, :id => nil
+                if options[:filter] && !options[:id]
+                    raise ArgumentError, ":filter is true, but no :id has been given"
+                end
                 html = load_template(LIST_TEMPLATE).result(binding)
-                push(title, html, push_options)
+                push(title, html, push_options.merge(:id => options[:id]))
             end
 
             signals 'updated()'

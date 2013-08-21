@@ -72,7 +72,7 @@ module MetaRuby::GUI
                     object_id = element.object.object_id
                     page.push(nil, "<h1 id=#{object_id}>#{element.format % element.text}</h1>")
 
-                    render_element(model, options.merge(element.rendering_options))
+                    render_element(element.object, options.merge(element.rendering_options))
                 end
             end
 
