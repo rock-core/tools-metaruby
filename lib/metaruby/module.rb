@@ -118,15 +118,6 @@ module MetaRuby
             end
         end
 
-        def clear_model
-            super
-            if supermodel
-                supermodel.deregister_submodels([self])
-            end
-            @supermodel = nil
-            parent_models.clear
-        end
-
         # Called to apply a model definition block on this model
         #
         # The definition class-eval's it
