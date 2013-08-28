@@ -76,5 +76,30 @@ describe MetaRuby::ModelAsModule do
             assert !result.permanent_model?
         end
     end
+
+    describe "#clear_model" do
+        attr_reader :root_m, :model_m
+        before do
+            @root_m = Module.new do
+                extend MetaRuby::ModelAsModule
+                self.root = true
+                self.permanent_model = true
+            end
+            @model_m = root_m.new_submodel
+            model_m.permanent_model = true
+        end
+
+        it "deregisters the module regardless of the permanent_model flag" do
+            flexmock(root_m).should_receive(:deregister_submodels).with([model_m]).once
+            model_m.permanent_model = true
+            model_m.clear_model
+        end
+        it "clears its parent model set" do
+            flexmock(root_m).should_receive(:deregister_submodels).with([model_m]).once
+            model_m.permanent_model = true
+            model_m.clear_model
+            assert model_m.parent_models.empty?
+        end
+    end
 end
 

@@ -118,6 +118,20 @@ module MetaRuby
             end
         end
 
+        # In the case of model-as-modules, we always deregister (regardless of
+        # the fact that +self+ is permanent or not). The reason for this is that
+        # the model-as-module hierarchy is much more dynamic than
+        # model-as-class. Who provides what can be changed after a #clear_model
+        # call.
+        def clear_model
+            super
+            if supermodel
+                supermodel.deregister_submodels([self])
+            end
+            @supermodel = nil
+            parent_models.clear
+        end
+
         # Called to apply a model definition block on this model
         #
         # The definition class-eval's it
