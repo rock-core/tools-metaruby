@@ -92,7 +92,7 @@ describe MetaRuby::Registration do
             base_model.clear_submodels
         end
         it "does not deregister the permanent models, but still calls #clear_submodels on them" do
-            base_model.should_receive(:deregister_submodels).with([]).once
+            base_model.should_receive(:deregister_submodels).with([]).never
             sub_model.should_receive(:permanent_model?).and_return(true).once
             sub_model.should_receive(:clear_submodels).once
             base_model.clear_submodels
@@ -111,7 +111,7 @@ describe MetaRuby::Registration do
         end
         it "does not deregister the permanent models" do
             flexmock(sub_model).should_receive(:permanent_model?).and_return(true).once
-            flexmock(base_model).should_receive(:deregister_submodels).with([]).once
+            flexmock(base_model).should_receive(:deregister_submodels).with([]).never
             base_model.clear_submodels
         end
         it "should deregister before it clears" do

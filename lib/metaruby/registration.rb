@@ -108,7 +108,9 @@ module MetaRuby
         # Clears all registered submodels
         def clear_submodels
             children = self.submodels.find_all { |m| !m.permanent_model? }
-            deregister_submodels(children)
+            if !children.empty?
+                deregister_submodels(children)
+            end
 
             children.each do |m|
                 # Deregister non-permanent models that are registered in the
