@@ -90,8 +90,13 @@ module MetaRuby
         end
 
         def clear_model
-            if !permanent_model? && (m = supermodel)
-                m.deregister_submodels([self])
+            if !permanent_model?
+                if m = supermodel
+                    m.deregister_submodels([self])
+                end
+                if Registration.accessible_by_name?(self)
+                    Registration.deregister_constant(self)
+                end
             end
             clear_submodels
         end

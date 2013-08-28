@@ -136,5 +136,47 @@ describe MetaRuby::Registration do
             assert !klass.accessible_by_name?
         end
     end
+
+    describe "#clear_model" do
+        attr_reader :obj, :supermodel
+        before do
+            @obj = Class.new do
+                extend MetaRuby::Registration
+            end
+            @supermodel = flexmock
+            supermodel.should_receive(:deregister_submodels).by_default
+            flexmock(obj).should_receive(:supermodel).and_return(supermodel)
+        end
+
+        it "should deregister itself from its parent models if it is non-permanent and has supermodels" do
+            supermodel.should_receive(:deregister_submodels).once.with([obj])
+            obj.permanent_model = false
+            obj.clear_model
+        end
+
+        it "should deregister itself from the constant hierarchy if non-permanent" do
+            obj.permanent_model = false
+            flexmock(MetaRuby::Registration).should_receive(:accessible_by_name?).once.with(obj).and_return(true)
+            flexmock(MetaRuby::Registration).should_receive(:deregister_constant).once.with(obj)
+            obj.clear_model
+        end
+
+        it "should not touch the receiver's registration if permanent" do
+            obj.permanent_model = true
+            flexmock(MetaRuby::Registration).should_receive(:deregister_constant).never
+            supermodel.should_receive(:deregister_submodels).never
+            obj.clear_model
+        end
+    end
+
+    describe "#deregister_constant" do
+        it "should deregister the object on the enclosing context" do
+            obj = flexmock(:basename => "Name", :spacename => "Test")
+            context = flexmock
+            flexmock(MetaRuby::Registration).should_receive(:constant).with("::Test").and_return(context)
+            context.should_receive(:remove_const).with('Name').once
+            MetaRuby::Registration.deregister_constant(obj)
+        end
+    end
 end
 
