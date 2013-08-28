@@ -26,8 +26,8 @@ module MetaRuby::GUI
                 @registered_exceptions = Array.new
             end
             
-            def register_type(model, rendering_class)
-                manager.register_type(model, rendering_class)
+            def register_type(model, rendering_class, render_options = Hash.new)
+                manager.register_type(model, rendering_class, render_options)
             end
 
             def enable

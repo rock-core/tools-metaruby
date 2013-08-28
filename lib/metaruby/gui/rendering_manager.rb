@@ -38,13 +38,13 @@ module MetaRuby
             #   rendering object can be created. The generated instances must
             #   follow the rules described in the documentation of
             #   {ModelBrowser}
-            def register_type(type, rendering_class)
+            def register_type(type, rendering_class, render_options = Hash.new)
                 render = if rendering_class.kind_of?(Class)
                              rendering_class.new(page)
                          else
                              rendering_class
                          end
-                available_renderers[type] = render
+                available_renderers[type] = [render, render_options]
                 connect(render, SIGNAL('updated()'), self, SIGNAL('updated()'))
             end
 
@@ -52,16 +52,16 @@ module MetaRuby
             def page=(page)
                 return if @page == page
                 @page = page
-                @available_renderers = available_renderers.map_value do |key, value|
+                @available_renderers = available_renderers.map_value do |key, (value, render_options)|
                     new_render = value.class.new(page)
                     disconnect(value, SIGNAL('updated()'))
                     connect(new_render, SIGNAL('updated()'), self, SIGNAL('updated()'))
-                    new_render
+                    [new_render, render_options]
                 end
             end
 
             def find_renderer(mod)
-                available_renderers.find do |model, render|
+                available_renderers.find do |model, _|
                     mod.kind_of?(model) || (mod.kind_of?(Module) && model.kind_of?(Module) && mod <= model)
                 end
             end
@@ -91,14 +91,14 @@ module MetaRuby
             # @raises [ArgumentError] if there is no view available for the
             #   given model
             def render(object, push_options = Hash.new)
-                _, renderer = find_renderer(object)
+                _, (renderer, render_options) = find_renderer(object)
                 if renderer
                     if current_renderer
                         current_renderer.clear
                         current_renderer.disable
                     end
                     renderer.enable
-                    renderer.render(object, push_options)
+                    renderer.render(object, render_options.merge(push_options))
                     @current_renderer = renderer
                 else
                     Kernel.raise ArgumentError, "no view available for #{object} (#{object.class})"
