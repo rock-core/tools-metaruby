@@ -1,3 +1,5 @@
+require 'facets/module/spacename'
+require 'facets/module/basename'
 require 'facets/kernel/call_stack'
 require 'utilrb/object/attribute'
 require 'utilrb/module/attr_predicate'
@@ -32,19 +34,45 @@ module MetaRuby
             end
         end
 
+        # @return [Boolean] true if the definition context (module, class) in
+        #   which self is registered is permanent or not w.r.t. the model
+        #   registration functionality of metaruby
+        def permanent_definition_context?
+            return false if !name
+            definition_context_name = spacename
+            if !definition_context_name.empty?
+                begin
+                    enclosing_context = constant("::#{definition_context_name}")
+                    return !enclosing_context.respond_to?(:permanent_model?) || enclosing_context.permanent_model?
+                rescue NameError
+                    false
+                end
+            else
+                true
+            end
+        end
+
+        # @return [Boolean] true if the given object can be accessed by resolving its
+        #   name as a constant
+        def self.accessible_by_name?(object)
+            return false if !object.respond_to?(:name) || !object.name
+            begin
+                constant("::#{object.name}") == object
+            rescue NameError
+                false
+            end
+        end
+
+        # @return [Boolean] true if this object can be accessed by resolving its
+        #   name as a constant
+        def accessible_by_name?
+            Registration.accessible_by_name?(self)
+        end
+
         # Call to register a model that is a submodel of +self+
         def register_submodel(klass)
             if !klass.definition_location
                 klass.definition_location = call_stack
-            end
-
-            if klass.name && !klass.permanent_model?
-                begin
-                    if constant("::#{klass.name}") == klass
-                        klass.permanent_model = true
-                    end
-                rescue NameError
-                end
             end
 
             submodels << klass
@@ -62,10 +90,19 @@ module MetaRuby
         end
 
         def clear_model
-            if m = supermodel
+            if !permanent_model? && (m = supermodel)
                 m.deregister_submodels([self])
             end
-            submodels.clear
+            clear_submodels
+        end
+        
+        # Removes the constant that stores the given object in the Ruby constant
+        # hierarchy
+        #
+        # It assumes that calling #name on the object returns the place in the
+        # constant hierarchy where it is stored
+        def self.deregister_constant(obj)
+            constant("::#{obj.spacename}").send(:remove_const, obj.basename)
         end
 
         # Clears all registered submodels
@@ -76,16 +113,8 @@ module MetaRuby
             children.each do |m|
                 # Deregister non-permanent models that are registered in the
                 # constant hierarchy
-                valid_name = begin constant(m.name) == m
-                             rescue NameError
-                             end
-
-                if valid_name
-                    parent_module = if m.name =~ /::/
-                                        constant(m.name.gsub(/::[^:]*$/, ''))
-                                    else Object
-                                    end
-                    parent_module.send(:remove_const, m.name.gsub(/.*::/, ''))
+                if Registration.accessible_by_name?(m)
+                    Registration.deregister_constant(m)
                 end
             end
 

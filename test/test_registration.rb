@@ -1,5 +1,14 @@
 require 'metaruby/test'
 
+class Constant
+    extend MetaRuby::Registration
+end
+module Mod
+    class Constant
+        extend MetaRuby::Registration
+    end
+end
+
 describe MetaRuby::Registration do
     include MetaRuby::SelfTest
 
@@ -110,6 +119,21 @@ describe MetaRuby::Registration do
             flexmock(base_model).should_receive(:deregister_submodels).once.ordered.pass_thru
             flexmock(sub_model).should_receive(:clear_submodels).once.ordered
             base_model.clear_submodels
+        end
+    end
+
+    describe "#accessible_by_name?" do
+        it "should be true for toplevel classes / modules" do
+            assert Constant.accessible_by_name?
+        end
+
+        it "should be true for classes / modules defined in namespaces" do
+            assert Mod::Constant.accessible_by_name?
+        end
+
+        it "should be false for anonymous classes / modules" do
+            klass = Class.new { extend MetaRuby::Registration }
+            assert !klass.accessible_by_name?
         end
     end
 end

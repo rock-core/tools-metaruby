@@ -46,7 +46,10 @@ module MetaRuby
                 base_model.setup_submodel(model, *args, &block)
             else 
                 namespace.const_set(name, model = base_model.new_submodel(*args, &block))
-                model.permanent_model = true
+                model.permanent_model = if !namespace.respond_to?(:permanent_model?)
+                                            Registration.accessible_by_name?(namespace)
+                                        else namespace.permanent_model?
+                                        end
             end
 
             model

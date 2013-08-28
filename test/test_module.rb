@@ -33,5 +33,48 @@ describe MetaRuby::ModelAsModule do
             assert sub.respond_to?(:inherited_attribute)
         end
     end
+
+    describe "#new_submodel" do
+        it "should mark the model as non-permanent" do
+            root = Module.new do
+                extend MetaRuby::ModelAsModule
+                self.root = true
+            end
+            sub = root.new_submodel
+            assert !sub.new_submodel.permanent_model?
+        end
+    end
+
+    describe "#create_and_register_submodel" do
+        attr_reader :definition_context, :base_m
+        before do
+            @definition_context = Module.new
+            @base_m = Module.new do
+                extend MetaRuby::ModelAsModule
+                def self.root?; true end
+            end
+        end
+
+        it "should set permanent_model to true if the enclosing module is a Ruby module that is accessible by name" do
+            flexmock(MetaRuby::Registration).should_receive(:accessible_by_name?).with(definition_context).and_return(true)
+            result = MetaRuby::ModelAsModule.create_and_register_submodel(definition_context, 'Test', base_m)
+            assert result.permanent_model?
+        end
+        it "should set permanent_model to false if the enclosing module is a Ruby module that is not accessible by name" do
+            flexmock(definition_context).should_receive(:accessible_by_name?).and_return(false)
+            result = MetaRuby::ModelAsModule.create_and_register_submodel(definition_context, 'Test', base_m)
+            assert !result.permanent_model?
+        end
+        it "should set permanent_model to true if the enclosing module is permanent" do
+            flexmock(definition_context).should_receive(:permanent_model?).and_return(true)
+            result = MetaRuby::ModelAsModule.create_and_register_submodel(definition_context, 'Test', base_m)
+            assert result.permanent_model?
+        end
+        it "should set permanent_model to false if the enclosing module is non-permanent" do
+            flexmock(definition_context).should_receive(:permanent_model?).and_return(false)
+            result = MetaRuby::ModelAsModule.create_and_register_submodel(definition_context, 'Test', base_m)
+            assert !result.permanent_model?
+        end
+    end
 end
 

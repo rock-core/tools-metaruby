@@ -104,7 +104,8 @@ module MetaRuby
 
             subclass.definition_location = call_stack
             super
-            subclass.permanent_model = true
+            subclass.permanent_model = subclass.accessible_by_name? &&
+                subclass.permanent_definition_context?
             if !from_new_submodel
                 setup_submodel(subclass)
             end
