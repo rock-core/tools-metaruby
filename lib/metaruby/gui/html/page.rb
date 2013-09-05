@@ -65,7 +65,8 @@ module MetaRuby::GUI
                 end
             end
 
-            def load_template(path)
+            def load_template(*path)
+                path = File.join(*path)
                 @templates[path] ||= ERB.new(File.read(path))
                 @templates[path].filename = path
                 @templates[path]
