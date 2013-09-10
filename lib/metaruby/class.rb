@@ -25,6 +25,9 @@ module MetaRuby
         # The call stack at the point of definition of this model
         attr_accessor :definition_location
 
+        # @return [String] set or get the documentation text for this model
+        inherited_single_value_attribute :doc
+
         # Sets a name on this model
         #
         # Only use this on 'anonymous models', i.e. on models that are not
@@ -48,6 +51,16 @@ module MetaRuby
                 return superclass
             end
         end
+        
+        # This flag is used to notify {#inherited} that it is being called from
+        # new_submodel, in which case it should not 
+        #
+        # This mechanism works as:
+        #   - inherited(subclass) is called right away after class.new is called
+        #     (so, we don't have to take recursive calls into account)
+        #   - it is a TLS, so thread safe
+        #
+        FROM_NEW_SUBMODEL_TLS = :metaruby_class_new_called_from_new_submodel
 
         # Creates a new submodel of +self+
         #
@@ -60,6 +73,7 @@ module MetaRuby
             options, submodel_options = Kernel.filter_options options,
                 :name => nil
 
+            Thread.current[FROM_NEW_SUBMODEL_TLS] = true
             model = self.class.new(self)
             model.permanent_model = false
             if options[:name]
@@ -78,8 +92,6 @@ module MetaRuby
         def setup_submodel(submodel, options = Hash.new, &block)
             register_submodel(submodel)
 
-            # Note: we do not have to call #register_submodel manually here,
-            # The inherited hook does that for us
             if block_given?
                 submodel.apply_block(&block)
             end
@@ -87,10 +99,16 @@ module MetaRuby
 
         # Registers submodels when a subclass is created
         def inherited(subclass)
+            from_new_submodel = Thread.current[FROM_NEW_SUBMODEL_TLS]
+            Thread.current[FROM_NEW_SUBMODEL_TLS] = false
+
             subclass.definition_location = call_stack
             super
-            subclass.permanent_model = true
-            setup_submodel(subclass)
+            subclass.permanent_model = subclass.accessible_by_name? &&
+                subclass.permanent_definition_context?
+            if !from_new_submodel
+                setup_submodel(subclass)
+            end
         end
 
         # Call to declare that this model provides the given model-as-module

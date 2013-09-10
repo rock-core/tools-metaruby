@@ -5,4 +5,5 @@
   <license>LGPLv3</license>
 
   <depend package="utilrb" />
+  <depend package="kramdown" optional="1" />
 </package>

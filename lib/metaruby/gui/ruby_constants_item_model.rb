@@ -67,7 +67,11 @@ module MetaRuby
                 if mod.respond_to?(:constants)
                     children_modules = mod.constants.map do |child_name|
                         next if !mod.const_defined_here?(child_name)
-                        child_mod = mod.const_get(child_name)
+                        child_mod = begin mod.const_get(child_name)
+                                    rescue LoadError
+                                        # Handle autoload errors
+                                    end
+                        next if !child_mod
                         next if filtered_out_modules.include?(child_mod)
                         next if stack.include?(child_mod)
                         [child_name.to_s, child_mod]

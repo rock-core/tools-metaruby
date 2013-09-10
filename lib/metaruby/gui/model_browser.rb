@@ -27,27 +27,43 @@ module MetaRuby
             #   results of different rendering objects, as well as the ability
             #   to e.g. handle buttons
             attr_reader :page
-            # @return [{Model=>Object}] set of rendering objects that are
-            #   declared. The Model is a class or module that represents the
-            #   set of models that the renderer can handle.
-            #
-            #   Do not modify directly, use {#register_type} instead
-            attr_reader :available_renderers
             # @return [Qt::WebView] the HTML view widget
             attr_reader :display
             # @return [ExceptionView] view that allows to display errors to the
             #   user
             attr_reader :exception_view
-            # @return the currently active renderer
-            attr_reader :current_renderer
-            # @return [Array<Exception>] the set of exceptions that should be
-            #   displayed in {#exception_view}
-            attr_reader :registered_exceptions
             # @return [Qt::PushButton] button that causes model reloading
             attr_reader :btn_reload_models
+            # @return [RenderingManager] the object that manages all the
+            #   rendering objects available
+            attr_reader :manager
+            # @return [Array<Exception>] set of exceptions raised during the
+            #   last rendering step
+            attr_reader :registered_exceptions
+            # @return [Array<Model,[String]>] the browsing history, as either
+            #   direct modules or module name path (suitable to be given to
+            #   #select_by_path)
+            attr_reader :history
+            # @return [Integer] the index of the current link in the history
+            attr_reader :history_index
+
+            # A Page object with a #link_to method that is suitable for the
+            # model browser
+            class Page < HTML::Page
+                def uri_for(object)
+                    if (obj_name = object.name) && (obj_name =~ /^[\w:]+$/)
+                        path = obj_name.split("::")
+                        "/" + path.join("/")
+                    else super
+                    end
+                end
+            end
+
 
             def initialize(main = nil)
                 super
+
+                @manager = RenderingManager.new
 
                 main_layout = Qt::VBoxLayout.new(self)
 
@@ -67,6 +83,9 @@ module MetaRuby
                 menu_layout.add_widget(btn_reload_models)
                 menu_layout.add_stretch(1)
                 update_exceptions
+
+                @history = Array.new
+                @history_index = -1
 
                 add_central_widgets(splitter)
             end
@@ -91,9 +110,7 @@ module MetaRuby
             #   The one with the highest priority will be used.
             def register_type(type, rendering_class, name, priority = 0)
                 model_selector.register_type(type, name, priority)
-                render = rendering_class.new(page)
-                available_renderers[type] = render
-                connect(render, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
+                manager.register_type(type, rendering_class)
             end
 
             # Sets up the widgets that form the central part of the browser
@@ -102,13 +119,30 @@ module MetaRuby
                 splitter.add_widget(model_selector)
 
                 # Create a central stacked layout
-                @display = Qt::WebView.new
+                display = @display = Qt::WebView.new
+                browser = self
+                display.singleton_class.class_eval do
+                    define_method :contextMenuEvent do |event|
+                        menu = Qt::Menu.new(self)
+                        act = page.action(Qt::WebPage::Back)
+                        act.enabled = true
+                        menu.add_action act
+                        connect(act, SIGNAL(:triggered), browser, SLOT(:back))
+                        act = page.action(Qt::WebPage::Forward)
+                        act.enabled = true
+                        connect(act, SIGNAL(:triggered), browser, SLOT(:forward))
+                        menu.add_action act
+                        menu.popup(event.globalPos)
+                        event.accept
+                    end
+                end
                 splitter.add_widget(display)
                 splitter.set_stretch_factor(1, 2)
-                self.page = HTML::Page.new(display)
+                self.page = Page.new(display.page)
 
                 model_selector.connect(SIGNAL('model_selected(QVariant)')) do |mod|
                     mod = mod.to_ruby
+                    push_to_history(mod)
                     render_model(mod)
                 end
             end
@@ -117,13 +151,16 @@ module MetaRuby
             #
             # @param [Page] page the new page object
             def page=(page)
+                manager.page = page
                 page.connect(SIGNAL('linkClicked(const QUrl&)')) do |url|
                     if url.scheme == "link"
                         path = url.path
-                        select_by_path(*path.split('/')[1..-1])
+                        path = path.split('/')[1..-1]
+                        select_by_path(*path)
                     end
                 end
                 connect(page, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
+                connect(manager, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
                 @page = page
             end
 
@@ -132,54 +169,80 @@ module MetaRuby
             # @param [Model] mod the model that should be rendered
             # @raises [ArgumentError] if there is no view available for the
             #   given model
-            def render_model(mod)
-                page.object_uris = model_selector.object_paths
-                model, render = available_renderers.find do |model, render|
-                    mod.kind_of?(model) || (mod.kind_of?(Module) && model.kind_of?(Module) && mod <= model)
-                end
-                if model
-                    title = "#{mod.name} (#{model.name})"
+            def render_model(mod, options = Hash.new)
+                page.clear
+                @registered_exceptions.clear
+                reference_model, _ = manager.find_renderer(mod)
+                if mod
+                    page.title = "#{mod.name} (#{reference_model.name})"
                     begin
-                        current_renderer.disable if current_renderer
-                        page.clear
-                        page.title = title
-                        render.clear
-                        render.enable
-                        render.render(mod)
-                        @current_renderer = render
+                        manager.render(mod, options)
                     rescue ::Exception => e
-                        register_exception(e)
+                        @registered_exceptions << e
                     end
                 else
-                    Kernel.raise ArgumentError, "no view available for #{mod.class} (#{mod})"
+                    @registered_exceptions << ArgumentError.new("no view available for #{mod} (#{mod.class})")
                 end
-            end
-
-            # Add an exception to be rendered on {#exception_view}
-            def register_exception(e)
-                @registered_exceptions << e
                 update_exceptions
             end
 
             # Updates {#exception_view} from the set of registered exceptions
             def update_exceptions
-                exception_view.exceptions = registered_exceptions
+                exception_view.exceptions = registered_exceptions +
+                    manager.registered_exceptions
             end
             slots 'update_exceptions()'
 
             # (see ModelSelector#select_by_module)
             def select_by_path(*path)
+                push_to_history(path)
                 model_selector.select_by_path(*path)
             end
 
             # (see ModelSelector#select_by_module)
             def select_by_module(model)
+                push_to_history(model)
                 model_selector.select_by_module(model)
             end
 
             # (see ModelSelector#current_selection)
             def current_selection
                 model_selector.current_selection
+            end
+
+            # Pushes one element in the history
+            #
+            # If the history index is not at the end, the remainder is discarded
+            def push_to_history(object)
+                return if object == history[history_index]
+
+                @history = history[0, history_index + 1]
+                history << object
+                @history_index = history.size - 1
+            end
+
+            # Go forward in the browsing history
+            def forward
+                return if history_index == history.size - 1
+                @history_index += 1
+                select_by_history_element(history[history_index])
+            end
+
+            # Go back in the browsing history
+            def back
+                return if history_index <= 0
+                @history_index -= 1
+                select_by_history_element(history[history_index])
+            end
+
+            slots :back, :forward
+
+            # Selects a given model based on a value in the history
+            def select_by_history_element(h)
+                if h.respond_to?(:to_ary)
+                    select_by_path(*h)
+                else select_by_module(h)
+                end
             end
         end
     end

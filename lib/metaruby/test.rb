@@ -13,6 +13,7 @@ if ENV['TEST_ENABLE_COVERAGE'] == '1'
     end
 end
 
+require 'test/unit'
 require 'metaruby'
 require 'flexmock/test_unit'
 require 'minitest/spec'
@@ -47,6 +48,9 @@ module MetaRuby
         end
 
         def teardown
+            if defined? FlexMock
+                flexmock_teardown
+            end
             # Teardown code for all the tests
         end
     end

@@ -1,0 +1,17 @@
+<% if title %>
+<h1><%= title %></h1>
+<% end %>
+<% fragments.each do |fragment| %>
+    <% if fragment.title %>
+<h2><%= fragment.title %></h2>
+    <% end %>
+<%= HTML.render_button_bar(fragment.buttons) %>
+    <% if fragment.id %>
+<div id="<%= fragment.id %>">
+    <% end %>
+<%= fragment.html %>
+    <% if fragment.id %>
+</div>
+    <% end %>
+<% end %>
+

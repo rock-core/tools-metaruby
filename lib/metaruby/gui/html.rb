@@ -1,5 +1,6 @@
 require 'metaruby/gui/html/button'
 require 'metaruby/gui/html/page'
+require 'metaruby/gui/html/collection'
 
 module MetaRuby
     module GUI

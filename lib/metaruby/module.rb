@@ -24,6 +24,9 @@ module MetaRuby
         include Registration
         extend Attributes
 
+        # @return [String] set or get the documentation text for this model
+        inherited_single_value_attribute :doc
+
         def self.validate_constant_name(name)
             if name !~ /^[A-Z]\w+$/
                 raise ArgumentError, "#{name} is not a valid model name"
@@ -43,7 +46,10 @@ module MetaRuby
                 base_model.setup_submodel(model, *args, &block)
             else 
                 namespace.const_set(name, model = base_model.new_submodel(*args, &block))
-                model.permanent_model = true
+                model.permanent_model = if !namespace.respond_to?(:permanent_model?)
+                                            Registration.accessible_by_name?(namespace)
+                                        else namespace.permanent_model?
+                                        end
             end
 
             model
@@ -112,6 +118,11 @@ module MetaRuby
             end
         end
 
+        # In the case of model-as-modules, we always deregister (regardless of
+        # the fact that +self+ is permanent or not). The reason for this is that
+        # the model-as-module hierarchy is much more dynamic than
+        # model-as-class. Who provides what can be changed after a #clear_model
+        # call.
         def clear_model
             super
             if supermodel

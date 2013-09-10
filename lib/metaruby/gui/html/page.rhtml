@@ -1,0 +1,13 @@
+<% prefix = if ressource_dir[0, 1] == "/" then "file://"
+            end
+%>
+<html>
+    <link rel="stylesheet" href="<%= prefix %><%= File.join(ressource_dir, 'page.css') %>" type="text/css" />
+    <script type="text/javascript" src="<%= prefix %><%= File.join(ressource_dir, 'jquery.min.js') %>"></script>
+    <script type="text/javascript" src="<%= prefix %><%= File.join(ressource_dir, 'jquery.selectfilter.js') %>"></script>
+    <title><%= page_name %></title>
+</html>
+<body>
+    <%= html_body(:ressource_dir => ressource_dir) %>
+</body>
+

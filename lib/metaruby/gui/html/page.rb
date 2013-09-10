@@ -2,6 +2,13 @@ module MetaRuby::GUI
     module HTML
         RESSOURCES_DIR = File.expand_path(File.dirname(__FILE__))
 
+        # A class that can be used as the webpage container for the Page class
+        class HTMLPage
+            attr_accessor :html
+
+            def main_frame; self end
+        end
+
         # A helper class that gives us easy-to-use page elements on a
         # Qt::WebView
         class Page < Qt::Object
@@ -27,72 +34,69 @@ module MetaRuby::GUI
 
             def link_to(object, text = nil)
                 text = HTML.escape_html(text || object.name)
-                if uri = object_uris[object]
+                if uri = uri_for(object)
                     "<a href=\"link://metaruby#{uri}\">#{text}</a>"
                 else text
                 end
             end
 
-            PAGE_TEMPLATE = <<-EOD
-            <html>
-            <link rel="stylesheet" href="file://#{File.join(RESSOURCES_DIR, 'page.css')}" type="text/css" />
-            <script type="text/javascript" src="file://#{File.join(RESSOURCES_DIR, 'jquery.min.js')}"></script>
-            </html>
-            <script type="text/javascript">
-            $(document).ready(function () {
-                $("tr.backtrace").hide()
-                $("a.backtrace_toggle_filtered").click(function (event) {
-                        var eventId = $(this).attr("id");
-                        $("#backtrace_full_" + eventId).hide();
-                        $("#backtrace_filtered_" + eventId).toggle();
-                        event.preventDefault();
-                        });
-                $("a.backtrace_toggle_full").click(function (event) {
-                        var eventId = $(this).attr("id");
-                        $("#backtrace_full_" + eventId).toggle();
-                        $("#backtrace_filtered_" + eventId).hide();
-                        event.preventDefault();
-                        });
-            });
-            </script>
-            <body>
-            <% if title %>
-            <h1><%= title %></h1>
-            <% end %>
-            <% fragments.each do |fragment| %>
-            <% if fragment.title %>
-                <h2><%= fragment.title %></h2>
-            <% end %>
-            <%= HTML.render_button_bar(fragment.buttons) %>
-            <% if fragment.id %>
-            <div id="<%= fragment.id %>">
-            <% end %>
-            <%= fragment.html %>
-            <% if fragment.id %>
-            </div>
-            <% end %>
-            <% end %>
-            </body>
-            EOD
-
-            def page
-                view.page
+            # Converts the given text from markdown to HTML and generates the
+            # necessary <div> context.
+            #
+            # @return [String] the HTML snippet that should be used to render
+            #   the given text as main documentation
+            def self.main_doc(text)
+                "<div class=\"doc-main\">#{Kramdown::Document.new(text).to_html}</div>"
             end
 
-            def initialize(view)
-                @view = view
+            def main_doc(text)
+                self.class.main_doc(text)
+            end
+
+            PAGE_TEMPLATE = File.join(RESSOURCES_DIR, "page.rhtml")
+            PAGE_BODY_TEMPLATE = File.join(RESSOURCES_DIR, "page_body.rhtml")
+            LIST_TEMPLATE = File.join(RESSOURCES_DIR, "list.rhtml")
+            ASSETS = %w{page.css jquery.min.js jquery.selectfilter.js}
+
+            def self.copy_assets_to(target_dir, assets = ASSETS)
+                FileUtils.mkdir_p target_dir
+                assets.each do |file|
+                    FileUtils.cp File.join(RESSOURCES_DIR, file), target_dir
+                end
+            end
+
+            def load_template(*path)
+                path = File.join(*path)
+                @templates[path] ||= ERB.new(File.read(path))
+                @templates[path].filename = path
+                @templates[path]
+            end
+
+            attr_reader :page
+
+            attr_accessor :page_name
+            attr_accessor :title
+
+            def initialize(page)
                 super()
+                @page = page
                 @fragments = []
-                page.link_delegation_policy = Qt::WebPage::DelegateAllLinks
-                Qt::Object.connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('pageLinkClicked(const QUrl&)'))
+                @templates = Hash.new
+
+                if page.kind_of?(Qt::WebPage)
+                    page.link_delegation_policy = Qt::WebPage::DelegateAllLinks
+                    Qt::Object.connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('pageLinkClicked(const QUrl&)'))
+                end
                 @object_uris = Hash.new
             end
 
-            attr_accessor :title
+            def uri_for(object)
+                object_uris[object]
+            end
 
             # Removes all existing displays
             def clear
-                view.html = ""
+                page.main_frame.html = ""
                 fragments.clear
             end
 
@@ -103,7 +107,19 @@ module MetaRuby::GUI
             end
 
             def update_html
-                view.html = ERB.new(PAGE_TEMPLATE).result(binding)
+                page.main_frame.html = html
+            end
+
+            def html(options = Hash.new)
+                options = Kernel.validate_options options, :ressource_dir => RESSOURCES_DIR
+                ressource_dir = options[:ressource_dir]
+                load_template(PAGE_TEMPLATE).result(binding)
+            end
+
+            def html_body(options = Hash.new)
+                options = Kernel.validate_options options, :ressource_dir => RESSOURCES_DIR
+                ressource_dir = options[:ressource_dir]
+                load_template(PAGE_BODY_TEMPLATE).result(binding)
             end
 
             def find_button_by_url(url)
@@ -176,11 +192,50 @@ module MetaRuby::GUI
                 if value
                     "<li><b>#{name}</b>: #{value}</li>"
                 else
-                    "<li><b>#{name}</b></li>"
+                    "<li>#{name}</li>"
                 end
             end
 
+            # Render a list of objects into HTML and push it to this page
+            #
+            # @param [String,nil] title the section's title. If nil, no new
+            #   section is created
+            # @param [Array<Object>,Array<(Object,Hash)>] items the list
+            #   items, one item per line. If a hash is provided, it is used as
+            #   HTML attributes for the lines
+            # @param [Hash] options
+            # @option options [Boolean] filter (false) if true, a filter is
+            #   added at the top of the page. You must provide a :id option for
+            #   the list for this to work
+            # @option (see #push)
+            def render_list(title, items, options = Hash.new)
+                options, push_options = Kernel.filter_options options, :filter => false, :id => nil
+                if options[:filter] && !options[:id]
+                    raise ArgumentError, ":filter is true, but no :id has been given"
+                end
+                html = load_template(LIST_TEMPLATE).result(binding)
+                push(title, html, push_options.merge(:id => options[:id]))
+            end
+
             signals 'updated()'
+
+            def self.to_html_page(object, renderer, options = Hash.new)
+                webpage = HTMLPage.new
+                page = new(webpage)
+                renderer.new(page).render(object, options)
+                page
+            end
+
+            # Renders an object to HTML using a given rendering class
+            def self.to_html(object, renderer, options = Hash.new)
+                html_options, options = Kernel.filter_options options, :ressource_dir => RESSOURCES_DIR
+                to_html_page(object, renderer, options).html(html_options)
+            end
+
+            def self.to_html_body(object, renderer, options = Hash.new)
+                html_options, options = Kernel.filter_options options, :ressource_dir => RESSOURCES_DIR
+                to_html_page(object, renderer, options).html_body(html_options)
+            end
         end
     end
 end

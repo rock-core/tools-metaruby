@@ -1,0 +1,24 @@
+<% if options[:filter] %>
+<script type="text/javascript">
+  jQuery(document).ready(function(){
+  jQuery("div#<%= push_options[:id] %>-list").selectFilter();
+});
+</script>
+<% end %>
+
+<div name="index_filter" id="<%= push_options[:id] %>-list">
+<%
+items.each_with_index do |(data, attributes), index|
+    if attributes
+        div_attributes = attributes.map { |k, v| " \#{k}=\"\#{v}\"" }.join("")
+    end
+%>
+<div class="short_doc<%= " list_alt" if index % 2 == 0 %>"<%= div_attributes %>>
+<% if data.respond_to?(:to_ary) %>
+<%   data = data.join("\n") %>
+<% end %>
+<%= data %>
+</div>
+<% end %>
+</div>
+
