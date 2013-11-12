@@ -35,7 +35,7 @@ module MetaRuby
         #       transitions[name]
         #     end
         #     def method_missing(m, *args, &block)
-        #       MetaRuby::DSLs.find_through_method_missing(self, m, *args,
+        #       MetaRuby::DSLs.find_through_method_missing(self, m, args,
         #         'state', 'transition') || super
         #     end
         #   end
