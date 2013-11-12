@@ -23,8 +23,8 @@ module MetaRuby
         # @raise [NoMethodError] if the requested object does not exist (i.e. if
         #   the find method returns nil)
         # @raise [ArgumentError] if the method name matches one of the suffixes,
-        #   but arguments were given
-        #
+        #   but arguments were given. It is raised regardless of the existence
+        #   of the requested object
         #
         # @example
         #   class MyClass
@@ -51,11 +51,10 @@ module MetaRuby
                     raise NoMethodError.new("#{object} has no method called #{find_method_name}", m)
                 elsif m =~ /(.*)_#{s}$/
                     name = $1
-                    if found = object.send(find_method_name, name)
-                        if !args.empty?
-                            raise ArgumentError, "expected zero arguments to #{m}, got #{args.size}", caller(4)
-                        else return found
-                        end
+                    if !args.empty?
+                        raise ArgumentError, "expected zero arguments to #{m}, got #{args.size}", caller(4)
+                    elsif found = object.send(find_method_name, name)
+                        return found
                     else
                         msg = "#{object} has no #{s} named #{name}"
                         raise NoMethodError.new(msg, m), msg, caller(4)
