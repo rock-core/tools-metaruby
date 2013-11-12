@@ -57,7 +57,7 @@ module MetaRuby
                         else return found
                         end
                     else
-                        msg = "#{self} has no #{s} named #{name}"
+                        msg = "#{object} has no #{s} named #{name}"
                         raise NoMethodError.new(msg, m), msg, caller(4)
                     end
                 end
