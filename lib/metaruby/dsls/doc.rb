@@ -23,7 +23,10 @@ module MetaRuby
                     end
 
                 if !this_method_matched && last_method_matched && (file_match === call[0])
-                    return parse_documentation_block_at(call[0], call[1])
+                    if File.file?(call[0])
+                        return parse_documentation_block_at(call[0], call[1])
+                    else return
+                    end
                 end
                 last_method_matched = this_method_matched
             end
