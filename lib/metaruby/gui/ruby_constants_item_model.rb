@@ -67,6 +67,10 @@ module MetaRuby
                 if mod.respond_to?(:constants)
                     children_modules = mod.constants.map do |child_name|
                         next if !mod.const_defined_here?(child_name)
+                        # Ruby issues a warning when one tries to access Config
+                        # (it has been deprecated in favor of RbConfig). Ignore
+                        # it explicitly
+                        next if mod == Object && child_name == :Config
                         child_mod = begin mod.const_get(child_name)
                                     rescue LoadError
                                         # Handle autoload errors
