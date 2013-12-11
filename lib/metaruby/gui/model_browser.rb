@@ -90,11 +90,20 @@ module MetaRuby
                 add_central_widgets(splitter)
             end
 
+            # Update the model selector after {register_type} got called
+            def update_model_selector
+                model_selector.update
+            end
+
             # Registers a certain kind of model as well as the information
             # needed to display it
             #
             # It registers the given type on the model browser so that it gets
             # displayed there.
+            #
+            # You must call {update_model_selector} after this call for the
+            # modification to have any effect (i.e. for the newly registered
+            # models to appear on the selector)
             #
             # @param [Model] type the base model class for the models that are
             #   considered here

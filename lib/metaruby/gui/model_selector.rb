@@ -35,6 +35,9 @@ module MetaRuby
                 connect(action, SIGNAL('triggered()')) do
                     update_model_filter
                 end
+            end
+
+            def update
                 update_model_filter
                 reload
             end
