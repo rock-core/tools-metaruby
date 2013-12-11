@@ -3,7 +3,7 @@ module MetaRuby
         # A Qt item model that lists Ruby modules that match a given predicate
         # (given at construction time)
         class RubyConstantsItemModel < Qt::AbstractItemModel
-            ModuleInfo = Struct.new :id, :name, :this, :parent, :children, :row, :types
+            ModuleInfo = Struct.new :id, :name, :this, :parent, :children, :row, :types, :full_name, :keyword_string
             TypeInfo   = Struct.new :name, :priority, :color
 
             attr_reader :predicate
@@ -126,15 +126,39 @@ module MetaRuby
                 end
             end
 
+            def compute_full_name(info)
+                if name = info.full_name
+                    return name
+                else
+                    full_name = []
+                    current = info
+                    while current.parent
+                        full_name << current.name
+                        current = current.parent
+                    end
+                    info.full_name = full_name.reverse
+                end
+            end
+
+            def compute_keyword_string(info)
+                if keywords = info.keyword_string
+                    return keywords
+                else
+                    types = info.types.map do |type|
+                        type_info[type].name
+                    end.sort.join(",")
+                    full_name = compute_full_name(info).map(&:downcase)
+                    info.keyword_string = "#{types};/#{full_name.join("/")}"
+                end
+            end
+
             def data(index, role)
                 if info = info_from_index(index)
                     if role == Qt::DisplayRole
                         return Qt::Variant.new(info.name)
                     elsif role == Qt::UserRole
-                        types = info.types.map do |type|
-                            type_info[type].name
-                        end.sort.join(",")
-                        return Qt::Variant.new(types)
+                        puts "keywords: #{compute_keyword_string(info)}"
+                        return Qt::Variant.new(compute_keyword_string(info))
                     end
                 end
                 return Qt::Variant.new

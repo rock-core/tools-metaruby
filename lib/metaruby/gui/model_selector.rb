@@ -7,6 +7,9 @@ module MetaRuby
             attr_reader :type_filters
             attr_reader :model_list
             attr_reader :model_filter
+            # @return [Qt::LineEdit] the line edit widget that allows to modify
+            #   the tree view filter
+            attr_reader :filter_box
             attr_reader :type_info
             attr_reader :browser_model
 
@@ -43,20 +46,32 @@ module MetaRuby
             end
 
             def update_model_filter
-                rx = []
-                type_filters.each do |model_base, act|
+                type_rx = type_filters.map do |model_base, act|
                     if act.checked?
-                        rx << type_info[model_base].name
+                        type_info[model_base].name
                     end
                 end
+                type_rx = type_rx.compact.join("|")
 
-                model_filter.filter_role = Qt::UserRole # filter on class/module ancestry
-                model_filter.filter_reg_exp = Qt::RegExp.new(rx.join("|"))
+                model_filter.filter_role = Qt::UserRole # this contains the keywords (ancestry and/or name)
+                # This workaround a problem that I did not have time to
+                # investigate. Adding new characters to the filter updates the
+                # browser just fine, while removing some characters does not
+                #
+                # This successfully resets the filter
+                model_filter.filter_reg_exp = Qt::RegExp.new("")
+                # The pattern has to match every element in the hierarchy. We
+                # achieve this by making the suffix part optional
+                name_rx = filter_box.text.split(/:+|\//).map(&:downcase)
+                name_rx = name_rx.reverse.inject(".*") do |rx, suffix|
+                    "/#{suffix}(#{rx}|$)"
+                end
+                model_filter.filter_reg_exp = Qt::RegExp.new(".*(#{type_rx}).*;.*#{name_rx}.*")
             end
 
 
             def model?(obj)
-                result = type_info.any? do |model_base, _|
+                type_info.any? do |model_base, _|
                     obj.kind_of?(model_base) ||
                         (obj.kind_of?(Module) && obj <= model_base)
                 end
@@ -65,8 +80,16 @@ module MetaRuby
             def setup_tree_view(layout)
                 @model_list = Qt::TreeView.new(self)
                 @model_filter = Qt::SortFilterProxyModel.new
+                model_filter.filter_case_sensitivity = Qt::CaseInsensitive
                 model_filter.dynamic_sort_filter = true
+                model_filter.filter_role = Qt::UserRole
                 model_list.model = model_filter
+
+                @filter_box = Qt::LineEdit.new(self)
+                filter_box.connect(SIGNAL('textChanged(QString)')) do |text|
+                    update_model_filter
+                end
+                layout.add_widget(filter_box)
                 layout.add_widget(model_list)
 
                 model_list.selection_model.connect(SIGNAL('currentChanged(const QModelIndex&, const QModelIndex&)')) do |index, _|
