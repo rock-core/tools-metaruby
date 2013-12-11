@@ -160,6 +160,8 @@ module MetaRuby
                 if info = info_from_index(index)
                     if role == Qt::DisplayRole
                         return Qt::Variant.new(info.name)
+                    elsif role == Qt::EditRole
+                        return Qt::Variant.new(compute_full_name(info).join("/"))
                     elsif role == Qt::UserRole
                         return Qt::Variant.new(compute_keyword_string(info))
                     end

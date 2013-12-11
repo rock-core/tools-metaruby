@@ -10,6 +10,8 @@ module MetaRuby
             # @return [Qt::LineEdit] the line edit widget that allows to modify
             #   the tree view filter
             attr_reader :filter_box
+            # @return [Qt::Completer] auto-completion for {filter_box}
+            attr_reader :filter_completer
             attr_reader :type_info
             attr_reader :browser_model
 
@@ -77,6 +79,15 @@ module MetaRuby
                 end
             end
 
+            class ModelPathCompleter < Qt::Completer
+                def splitPath(path)
+                    path.split('/')
+                end
+                def pathFromIndex(index)
+                    index.data(Qt::UserRole).split(";").last
+                end
+            end
+
             def setup_tree_view(layout)
                 @model_list = Qt::TreeView.new(self)
                 @model_filter = Qt::SortFilterProxyModel.new
@@ -89,6 +100,9 @@ module MetaRuby
                 filter_box.connect(SIGNAL('textChanged(QString)')) do |text|
                     update_model_filter
                 end
+                @filter_completer = ModelPathCompleter.new(browser_model, self)
+                filter_completer.case_sensitivity = Qt::CaseInsensitive
+                filter_box.completer = filter_completer
                 layout.add_widget(filter_box)
                 layout.add_widget(model_list)
 
