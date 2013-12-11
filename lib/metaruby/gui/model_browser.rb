@@ -204,14 +204,16 @@ module MetaRuby
 
             # (see ModelSelector#select_by_module)
             def select_by_path(*path)
-                push_to_history(path)
-                model_selector.select_by_path(*path)
+                if model_selector.select_by_path(*path)
+                    push_to_history(path)
+                end
             end
 
             # (see ModelSelector#select_by_module)
             def select_by_module(model)
-                push_to_history(model)
-                model_selector.select_by_module(model)
+                if model_selector.select_by_module(model)
+                    push_to_history(model)
+                end
             end
 
             # (see ModelSelector#current_selection)
