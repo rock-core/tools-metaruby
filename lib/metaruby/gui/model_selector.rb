@@ -124,6 +124,41 @@ module MetaRuby
                 end
             end
 
+            # Resets the current filter
+            def reset_filter
+                # If there is a filter, reset it and try again
+                if !filter_box.text.empty?
+                    filter_box.text = ""
+                    true
+                end
+            end
+
+            # Maps a model index from the source index to the filtered index,
+            # e.g. to select something in the view.
+            #
+            # In addition to the normal map_from_source call, it allows to
+            # control whether the filter should be reset if the index given as
+            # parameter is currently filtered out
+            #
+            # @param [Qt::ModelIndex] an index valid in {browser_model}
+            # @option options [Boolean] :reset_filter (true) if true, the filter
+            #   is reset if the requested index is currently filtered out
+            # @return [Qt::ModelIndex] an index filtered by {model_filter}
+            def map_index_from_source(source_index, options = Hash.new)
+                options = Kernel.validate_options options, :reset_filter => true
+                index = model_filter.map_from_source(source_index)
+                if !index
+                    return
+                elsif !index.valid?
+                    if !options[:reset_filter]
+                        return index
+                    end
+                    reset_filter
+                    model_filter.map_from_source(source_index)
+                else index
+                end
+            end
+
             # Selects the current model given a path in the constant names
             # This emits the model_selected signal
             #
@@ -131,7 +166,7 @@ module MetaRuby
             #   and false otherwise
             def select_by_path(*path)
                 if index = browser_model.find_index_by_path(*path)
-                    index = model_filter.map_from_source(index)
+                    index = map_index_from_source(index)
                     model_list.selection_model.set_current_index(index, Qt::ItemSelectionModel::ClearAndSelect)
                     true
                 end
@@ -144,7 +179,7 @@ module MetaRuby
             #   and false otherwise
             def select_by_module(model)
                 if index = browser_model.find_index_by_model(model)
-                    index = model_filter.map_from_source(index)
+                    index = map_index_from_source(index)
                     model_list.selection_model.set_current_index(index, Qt::ItemSelectionModel::ClearAndSelect)
                     true
                 end
