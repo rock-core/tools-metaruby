@@ -161,7 +161,6 @@ module MetaRuby
                     if role == Qt::DisplayRole
                         return Qt::Variant.new(info.name)
                     elsif role == Qt::UserRole
-                        puts "keywords: #{compute_keyword_string(info)}"
                         return Qt::Variant.new(compute_keyword_string(info))
                     end
                 end
