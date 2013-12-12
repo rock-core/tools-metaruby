@@ -22,7 +22,10 @@ module MetaRuby
                 @type_info = type_info
                 @title = "Model Browser"
                 @excludes = [Qt].to_set
-                reload
+
+                @id_to_module = []
+                @filtered_out_modules = Set.new
+                @object_paths = Hash.new
             end
 
             def reload

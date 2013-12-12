@@ -113,8 +113,6 @@ module MetaRuby
                         emit model_selected(Qt::Variant.from_ruby(mod.this, mod.this))
                     end
                 end
-
-                reload
             end
             signals 'model_selected(QVariant)'
 
@@ -131,6 +129,7 @@ module MetaRuby
                 @browser_model = RubyConstantsItemModel.new(type_info) do |mod|
                     model?(mod)
                 end
+                browser_model.reload
                 model_filter.source_model = browser_model
 
                 if current_path && !select_by_path(*current_path)
