@@ -73,7 +73,13 @@ module MetaRuby
                 is_needed = (mod.kind_of?(Class) && mod == Object) || predicate.call(mod)
 
                 if mod.respond_to?(:constants)
-                    children_modules = mod.constants.map do |child_name|
+                    children_modules = begin mod.constants
+                                       rescue TypeError
+                                           puts "cannot discover module #{mod}"
+                                           []
+                                       end
+
+                    children_modules = children_modules.map do |child_name|
                         next if !mod.const_defined_here?(child_name)
                         # Ruby issues a warning when one tries to access Config
                         # (it has been deprecated in favor of RbConfig). Ignore
