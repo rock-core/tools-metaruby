@@ -12,12 +12,16 @@ module MetaRuby
             attr_reader :type_info
             attr_accessor :title
             attr_reader :object_paths
+            # @return [Set<Object>] a set of objects that should not be
+            #   discovered
+            attr_reader :excludes
 
             def initialize(type_info = Hash.new, &predicate)
                 super()
                 @predicate = predicate || proc { true }
                 @type_info = type_info
                 @title = "Model Browser"
+                @excludes = [Qt].to_set
                 reload
             end
 
@@ -57,6 +61,7 @@ module MetaRuby
             end
 
             def discover_module(mod, stack = Array.new)
+                return if excludes.include?(mod)
                 stack.push mod
 
                 children = []
