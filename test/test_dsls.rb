@@ -10,7 +10,10 @@ describe MetaRuby::DSLs do
             obj.should_receive(:find_obj).with("test").once.and_return(found = flexmock)
             assert_equal found, MetaRuby::DSLs.find_through_method_missing(obj, :test_obj, [], "obj")
         end
+        it "should allow specifying the find method name" do
             obj = flexmock
+            obj.should_receive(:find_obj).with("test").once.and_return(found = flexmock)
+            assert_equal found, MetaRuby::DSLs.find_through_method_missing(obj, :test_bla, [], "bla" => 'find_obj')
         end
         it "should raise NoMethodError if the requested object is not found" do
             obj = flexmock

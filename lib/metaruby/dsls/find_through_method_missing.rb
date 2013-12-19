@@ -15,7 +15,9 @@ module MetaRuby
         # @param [Symbol] m the method name
         # @param [Array] args the method arguments
         # @param [Array<String>] suffixes the accessor suffixes that should be
-        #   resolved
+        #   resolved. The last argument can be a hash, in which case the keys
+        #   are used as suffixes and the values are the name of the find methods
+        #   that should be used.
         # @return [Object,nil] an object if one of the listed suffixes matches
         #   the method name, or nil if the method name does not match the
         #   requested pattern.
@@ -44,9 +46,16 @@ module MetaRuby
         #   object.my_state # will resolve the 'my' state
         #
         def self.find_through_method_missing(object, m, args, *suffixes)
+            suffix_match = Hash.new
+            if suffixes.last.kind_of?(Hash)
+                suffix_match.merge!(suffixes.pop)
+            end
+            suffixes.each do |name|
+                suffix_match[name] = "find_#{name}"
+            end
+
             m = m.to_s
-            suffixes.each do |s|
-                find_method_name = "find_#{s}"
+            suffix_match.each do |s, find_method_name|
                 if m == find_method_name
                     raise NoMethodError.new("#{object} has no method called #{find_method_name}", m)
                 elsif m =~ /(.*)_#{s}$/
