@@ -9,6 +9,7 @@ module MetaRuby
             def initialize(parent = nil)
                 super
                 @displayed_exceptions = []
+                self.focus_policy = Qt::NoFocus
             end
 
             def push(exception, reason = nil)

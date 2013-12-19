@@ -88,6 +88,8 @@ module MetaRuby
                 @history_index = -1
 
                 add_central_widgets(splitter)
+                setTabOrder(model_selector, display)
+                setTabOrder(display, btn_reload_models)
             end
 
             # Update the model selector after {register_type} got called

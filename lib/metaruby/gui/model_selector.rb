@@ -28,6 +28,8 @@ module MetaRuby
                 filter_button.menu = btn_type_filter_menu
 
                 setup_tree_view(layout)
+                setTabOrder(filter_box, filter_button)
+                setTabOrder(filter_button, model_list)
             end
 
             def register_type(model_base, name, priority = 0)
