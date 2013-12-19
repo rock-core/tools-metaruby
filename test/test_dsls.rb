@@ -10,6 +10,8 @@ describe MetaRuby::DSLs do
             obj.should_receive(:find_obj).with("test").once.and_return(found = flexmock)
             assert_equal found, MetaRuby::DSLs.find_through_method_missing(obj, :test_obj, [], "obj")
         end
+            obj = flexmock
+        end
         it "should raise NoMethodError if the requested object is not found" do
             obj = flexmock
             obj.should_receive(:find_obj).with("test").once.and_return(nil)
@@ -17,16 +19,9 @@ describe MetaRuby::DSLs do
                 MetaRuby::DSLs.find_through_method_missing(obj, :test_obj, [], "obj")
             end
         end
-        it "should raise NoMethodError if the requested object is not found even if some arguments have been given" do
+        it "should raise ArgumentError if some arguments are given regardless of whether the object exists" do
             obj = flexmock
-            obj.should_receive(:find_obj).with("test").once.and_return(nil)
-            assert_raises(NoMethodError) do
-                MetaRuby::DSLs.find_through_method_missing(obj, :test_obj, [10], "obj")
-            end
-        end
-        it "should raise ArgumentError if the requested object is found and some arguments have been given" do
-            obj = flexmock
-            obj.should_receive(:find_obj).with("test").once.and_return(flexmock)
+            obj.should_receive(:find_obj).never
             assert_raises(ArgumentError) do
                 MetaRuby::DSLs.find_through_method_missing(obj, :test_obj, [10], "obj")
             end
