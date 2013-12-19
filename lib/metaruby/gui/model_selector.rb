@@ -66,13 +66,33 @@ module MetaRuby
                 model_filter.filter_reg_exp = Qt::RegExp.new("")
                 # The pattern has to match every element in the hierarchy. We
                 # achieve this by making the suffix part optional
-                name_rx = filter_box.text.split(/:+|\//).map(&:downcase)
-                name_rx = name_rx.reverse.inject(".*") do |rx, suffix|
-                    "/#{suffix}(#{rx}|$)"
-                end
-                model_filter.filter_reg_exp = Qt::RegExp.new(".*(#{type_rx}).*;.*#{name_rx}.*")
+                name_rx = filter_box.text.downcase.gsub(/:+/, "/")
+                model_filter.filter_reg_exp = Qt::RegExp.new("(#{type_rx}).*;.*#{name_rx}")
+                auto_open
             end
 
+            def auto_open(threshold = 5)
+                current_level = [Qt::ModelIndex.new]
+                while !current_level.empty?
+                    count = current_level.inject(0) do |total, index|
+                        total + model_filter.rowCount(index)
+                    end
+                    close_this_level = (count > threshold)
+                    current_level.each do |index|
+                        model_filter.rowCount(index).times.each do |row|
+                            model_list.setExpanded(model_filter.index(row, 0, index), !close_this_level)
+                        end
+                    end
+                    return if close_this_level
+
+                    last_level, current_level = current_level, []
+                    last_level.each do |index|
+                        model_filter.rowCount(index).times.each do |row|
+                            current_level << model_filter.index(row, 0, index)
+                        end
+                    end
+                end
+            end
 
             def model?(obj)
                 type_info.any? do |model_base, _|

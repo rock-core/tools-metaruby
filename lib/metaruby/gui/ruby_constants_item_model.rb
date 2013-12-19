@@ -3,7 +3,7 @@ module MetaRuby
         # A Qt item model that lists Ruby modules that match a given predicate
         # (given at construction time)
         class RubyConstantsItemModel < Qt::AbstractItemModel
-            ModuleInfo = Struct.new :id, :name, :this, :parent, :children, :row, :types, :full_name, :keyword_string
+            ModuleInfo = Struct.new :id, :name, :this, :parent, :children, :row, :types, :full_name, :keyword_string, :path
             TypeInfo   = Struct.new :name, :priority, :color
 
             attr_reader :predicate
@@ -158,6 +158,15 @@ module MetaRuby
                 end
             end
 
+            def compute_path(info)
+                if path = info.path
+                    return path
+                else
+                    full_name = compute_full_name(info)
+                    info.path = ("/" + full_name.map(&:downcase).join("/"))
+                end
+            end
+
             def compute_keyword_string(info)
                 if keywords = info.keyword_string
                     return keywords
@@ -165,8 +174,9 @@ module MetaRuby
                     types = info.types.map do |type|
                         type_info[type].name
                     end.sort.join(",")
-                    full_name = compute_full_name(info).map(&:downcase)
-                    info.keyword_string = "#{types};/#{full_name.join("/")}"
+                    paths = [compute_path(info)]
+                    paths.concat info.children.map { |child| compute_path(child) }
+                    info.keyword_string = "#{types};#{paths.join(",")}"
                 end
             end
 
