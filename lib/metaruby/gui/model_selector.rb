@@ -90,6 +90,30 @@ module MetaRuby
                 end
             end
 
+            def all_leaves(model, limit = nil, item = Qt::ModelIndex.new, result = [])
+                if !model.hasChildren(item)
+                    result << item
+                    return result
+                end
+
+                row, child_item = 0, model.index(0, 0, item)
+                while child_item.valid?
+                    all_leaves(model, limit, child_item, result)
+                    if limit && result.size == limit
+                        return result
+                    end
+                    row += 1
+                    child_item = model.index(row, 0, item)
+                end
+                return result
+            end
+
+            def select_first_item
+                if item = all_leaves(model_filter, 1).first
+                    model_list.setCurrentIndex(item)
+                end
+            end
+
             def setup_tree_view(layout)
                 @model_list = Qt::TreeView.new(self)
                 @model_filter = Qt::SortFilterProxyModel.new
@@ -101,6 +125,9 @@ module MetaRuby
                 @filter_box = Qt::LineEdit.new(self)
                 filter_box.connect(SIGNAL('textChanged(QString)')) do |text|
                     update_model_filter
+                end
+                filter_box.connect(SIGNAL('returnPressed()')) do |text|
+                    select_first_item
                 end
                 @filter_completer = ModelPathCompleter.new(browser_model, self)
                 filter_completer.case_sensitivity = Qt::CaseInsensitive
