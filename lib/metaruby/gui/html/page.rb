@@ -82,6 +82,7 @@ module MetaRuby::GUI
                 @page = page
                 @fragments = []
                 @templates = Hash.new
+                @auto_id = 0
 
                 if page.kind_of?(Qt::WebPage)
                     page.link_delegation_policy = Qt::WebPage::DelegateAllLinks
@@ -157,6 +158,35 @@ module MetaRuby::GUI
             slots 'pageLinkClicked(const QUrl&)'
             signals 'linkClicked(const QUrl&)', 'buttonClicked(const QString&,bool)'
 
+            # Save the current state of the page, so that it can be restored by
+            # calling {restore}
+            def save
+                @saved_state = fragments.map(&:dup)
+            end
+
+            # Restore the page at the state it was at the last call to {save}
+            def restore
+                return if !@saved_state
+
+                fragments_by_id = Hash.new
+                @saved_state.each do |fragment|
+                    fragments_by_id[fragment.id] = fragment
+                end
+
+                # Delete all fragments that are not in the saved state
+                fragments.delete_if do |fragment|
+                    element = find_first_element("div##{fragment.id}")
+                    if old_fragment = fragments_by_id[fragment.id]
+                        if old_fragment.html != fragment.html
+                            element.replace(old_fragment.html)
+                        end
+                    else
+                        element.replace("")
+                        true
+                    end
+                end
+            end
+
             # Adds a fragment to this page, with the given title and HTML
             # content
             #
@@ -183,8 +213,12 @@ module MetaRuby::GUI
                     end
                 end
 
-                fragments << Fragment.new(title, html, view_options)
+                fragments << Fragment.new(title, html, Hash[:id => auto_id].merge(view_options))
                 update_html
+            end
+
+            def auto_id
+                "metaruby-html-page-fragment-#{@auto_id += 1}"
             end
 
             # Create an item for the rendering in tables
