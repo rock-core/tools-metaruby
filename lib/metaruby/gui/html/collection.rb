@@ -42,7 +42,7 @@ module MetaRuby::GUI
 
             def clear
                 @object_id_to_object.clear
-                @registered_exceptions.clear
+                registered_exceptions.clear
                 manager.clear
             end
 
