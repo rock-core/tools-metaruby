@@ -85,6 +85,7 @@ module MetaRuby::GUI
             slots 'linkClicked(const QUrl&)'
 
             def render_element(object, options = Hash.new)
+                page.restore
                 registered_exceptions.clear
                 begin
                     manager.render(object, options)
