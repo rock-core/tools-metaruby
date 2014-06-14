@@ -1,3 +1,4 @@
+require 'set'
 require 'utilrb/module/dsl_attribute'
 module MetaRuby
     module Attributes
