@@ -15,6 +15,7 @@ begin
         self.changes     = paragraphs_of('History.txt', 0..1).join("\n\n")
         self.readme_file = 'README.markdown'
         self.history_file = 'History.txt'
+        self.license 'LGPLv3+'
 
         extra_deps <<
             ['utilrb',   '>= 1.3.4'] <<
