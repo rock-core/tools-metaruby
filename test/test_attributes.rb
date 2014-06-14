@@ -1,6 +1,6 @@
 require 'metaruby/test'
 
-class TC_Models < Test::Unit::TestCase
+class TC_Models < MiniTest::Test
     def test_inherited_attribute_class
 	a = Class.new do
             class << self

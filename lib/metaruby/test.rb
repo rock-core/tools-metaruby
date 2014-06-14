@@ -13,7 +13,7 @@ if ENV['TEST_ENABLE_COVERAGE'] == '1'
     end
 end
 
-require 'test/unit'
+require 'minitest/autorun'
 require 'metaruby'
 require 'flexmock/test_unit'
 require 'minitest/spec'
@@ -27,6 +27,13 @@ if ENV['TEST_ENABLE_PRY'] != '0'
 end
 
 module MetaRuby
+    if defined? FlexMock
+        class MiniTest::Test
+            include FlexMock::ArgumentTypes
+            include FlexMock::MockContainer
+        end
+    end
+
     # This module is the common setup for all tests
     #
     # It should be included in the toplevel describe blocks
