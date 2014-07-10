@@ -23,8 +23,8 @@ module MetaRuby
         # @return [InheritedAttribute] the attribute definition
         # @raise [ArgumentError] if no attribute with that name exists
         def inherited_attribute_by_name(name)
-            if ih = inherited_attributes.find { |ih| ih.name == name }
-                return ih
+            if attr = inherited_attributes.find { |ih| ih.name == name }
+                return attr
             else raise ArgumentError, "#{self} has no inherited attribute called #{name}"
             end
         end
@@ -136,7 +136,7 @@ module MetaRuby
                 end
 
                 if has_value
-                    promotions.inject(value) { |v, klass| klass.#{promotion_method_name}(v) }
+                    promotions.inject(value) { |v, k| k.#{promotion_method_name}(v) }
                 end
             end
             EOF
@@ -414,11 +414,11 @@ module MetaRuby
                     promotions = []
                     for klass in ancestors
                         if klass.instance_variable_defined?(:@#{attribute_name})
-                            klass.#{attribute_name}.#{options[:enum_with]} do |key, value|
+                            klass.#{attribute_name}.#{options[:enum_with]} do |k, v|
                                 for p in promotions
-                                    value = p.promote_#{name}(key, value)
+                                    v = p.promote_#{name}(k, v)
                                 end
-                                yield(key, value)
+                                yield(k, v)
                             end
                         end
                         promotions.unshift(klass) if klass.respond_to?("promote_#{name}")
@@ -428,13 +428,13 @@ module MetaRuby
                     promotions = []
                     for klass in ancestors
                         if klass.instance_variable_defined?(:@#{attribute_name})
-                            klass.#{attribute_name}.#{options[:enum_with]} do |key, value|
-                                unless seen.include?(key)
+                            klass.#{attribute_name}.#{options[:enum_with]} do |k, v|
+                                unless seen.include?(k)
                                     for p in promotions
-                                        value = p.promote_#{name}(key, value)
+                                        v = p.promote_#{name}(k, v)
                                     end
-                                    seen << key
-                                    yield(key, value)
+                                    seen << k
+                                    yield(k, v)
                                 end
                             end
                         end
