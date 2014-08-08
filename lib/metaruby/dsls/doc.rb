@@ -50,6 +50,7 @@ module MetaRuby
             while true
                 case l = lines[line]
                 when /^\s*$/
+                    break
                 when /^\s*#/
                     block << l
                 else break
