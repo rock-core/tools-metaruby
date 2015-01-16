@@ -35,6 +35,9 @@ module MetaRuby::GUI
             def link_to(object, text = nil)
                 text = HTML.escape_html(text || object.name)
                 if uri = uri_for(object)
+                    if uri[0, 1] != '/'
+                        uri = "/#{uri}"
+                    end
                     "<a href=\"link://metaruby#{uri}\">#{text}</a>"
                 else text
                 end
