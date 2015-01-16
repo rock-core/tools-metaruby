@@ -33,6 +33,8 @@ margin-bottom: 1em;
 margin-left: 0em;
 margin-right: 0em;
 font-family: monospace;
+white-space: pre;
+display: block;
 }
 /* Style for the main documentation block for a page */
 .doc-main { font-size: 130% }
