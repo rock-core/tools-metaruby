@@ -35,6 +35,9 @@ module MetaRuby::GUI
             def link_to(object, text = nil)
                 text = HTML.escape_html(text || object.name)
                 if uri = uri_for(object)
+                    if uri[0, 1] != '/'
+                        uri = "/#{uri}"
+                    end
                     "<a href=\"link://metaruby#{uri}\">#{text}</a>"
                 else text
                 end
@@ -140,18 +143,22 @@ module MetaRuby::GUI
             def pageLinkClicked(url)
                 return if url.host != 'metaruby'
 
-                if btn = find_button_by_url(url)
-                    new_state = if url.fragment == 'on' then true
-                                else false
-                                end
+                if url.scheme == 'btn'
+                    if btn = find_button_by_url(url)
+                        new_state = if url.fragment == 'on' then true
+                                    else false
+                                    end
 
-                    btn.state = new_state
-                    new_text = btn.text
-                    element = find_first_element("a##{btn.html_id}")
-                    element.replace(btn.render)
+                        btn.state = new_state
+                        new_text = btn.text
+                        element = find_first_element("a##{btn.html_id}")
+                        element.replace(btn.render)
 
-                    emit buttonClicked(btn.id, new_state)
-                else
+                        emit buttonClicked(btn.id, new_state)
+                    else
+                        MetaRuby.warn "invalid button URI #{url}: could not find corresponding handler"
+                    end
+                elsif url.scheme == 'link'
                     emit linkClicked(url)
                 end
             end
