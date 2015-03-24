@@ -1,7 +1,7 @@
 <package>
   <description brief="Modelling using the Ruby language as a metamodel">
   </description>
-  <author>Sylvain Joyeux/sylvain.joyeux@dfki.de</author>
+  <maintainer>Sylvain Joyeux/sylvain.joyeux@m4x.org</maintainer>
   <license>LGPLv3</license>
 
   <depend package="utilrb" />
