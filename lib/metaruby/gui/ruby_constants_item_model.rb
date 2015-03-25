@@ -85,6 +85,7 @@ module MetaRuby
                         # (it has been deprecated in favor of RbConfig). Ignore
                         # it explicitly
                         next if mod == Object && child_name == :Config
+                        next if mod.autoload?(child_name)
                         child_mod = begin mod.const_get(child_name)
                                     rescue LoadError
                                         # Handle autoload errors
