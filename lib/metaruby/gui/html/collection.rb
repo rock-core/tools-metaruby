@@ -52,7 +52,7 @@ module MetaRuby::GUI
 
             def element_link_target(object, interactive)
                 if interactive
-                    id =  "btn://metaruby/#{namespace}#{object.object_id}"
+                    id =  "link://metaruby/#{namespace}#{object.object_id}"
                 else
                     id =  "##{object.object_id}"
                 end

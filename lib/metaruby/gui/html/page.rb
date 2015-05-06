@@ -37,13 +37,19 @@ module MetaRuby::GUI
                 javascript << File.expand_path(file)
             end
 
-            def link_to(object, text = nil)
-                text = HTML.escape_html(text || object.name)
+            def link_to(object, text = nil, args = Hash.new)
+                text = HTML.escape_html(text || object.name || "<anonymous>")
                 if uri = uri_for(object)
-                    if uri[0, 1] != '/'
-                        uri = "/#{uri}"
+                    if uri !~ /^\w+:\/\//
+                        if uri[0, 1] != '/'
+                            uri = "/#{uri}"
+                        end
+                        uri = Qt::Url.new("link://metaruby#{uri}")
+                    else
+                        uri = Qt::Url.new(uri)
                     end
-                    "<a href=\"link://metaruby#{uri}\">#{text}</a>"
+                    args.each { |k, v| uri.add_query_item(k.to_s, v.to_s) }
+                    "<a href=\"#{uri.to_string}\">#{text}</a>"
                 else text
                 end
             end
@@ -100,8 +106,13 @@ module MetaRuby::GUI
                 @object_uris = Hash.new
             end
 
+
             def uri_for(object)
-                object_uris[object]
+                if object.kind_of?(Pathname)
+                    "file://#{object}"
+                else
+                    object_uris[object]
+                end
             end
 
             # Removes all existing displays
@@ -147,9 +158,7 @@ module MetaRuby::GUI
             end
 
             def pageLinkClicked(url)
-                return if url.host != 'metaruby'
-
-                if url.scheme == 'btn'
+                if url.scheme == 'btn' && url.host == 'metaruby'
                     if btn = find_button_by_url(url)
                         new_state = if url.fragment == 'on' then true
                                     else false
@@ -162,14 +171,18 @@ module MetaRuby::GUI
 
                         emit buttonClicked(btn.id, new_state)
                     else
-                        MetaRuby.warn "invalid button URI #{url}: could not find corresponding handler"
+                        MetaRuby.warn "invalid button URI #{url.to_string}: could not find corresponding handler (known buttons are #{fragments.flat_map { |f| f.buttons.map { |btn| btn.id.to_string } }.sort.join(", ")})"
                     end
-                elsif url.scheme == 'link'
+                elsif url.scheme == 'link' && url.host == 'metaruby'
                     emit linkClicked(url)
+                elsif url.scheme == "file"
+                    emit fileOpenClicked(url)
+                else
+                    MetaRuby.warn "MetaRuby::GUI::HTML::Page: ignored link #{url.toString}"
                 end
             end
             slots 'pageLinkClicked(const QUrl&)'
-            signals 'linkClicked(const QUrl&)', 'buttonClicked(const QString&,bool)'
+            signals 'linkClicked(const QUrl&)', 'buttonClicked(const QString&,bool)', 'fileOpenClicked(const QUrl&)'
 
             # Save the current state of the page, so that it can be restored by
             # calling {restore}

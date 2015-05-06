@@ -51,7 +51,7 @@ module MetaRuby
             # model browser
             class Page < HTML::Page
                 def uri_for(object)
-                    if (obj_name = object.name) && (obj_name =~ /^[\w:]+$/)
+                    if object.respond_to?(:name) && (obj_name = object.name) && (obj_name =~ /^[\w:]+$/)
                         path = obj_name.split("::")
                         "/" + path.join("/")
                     else super
@@ -171,9 +171,12 @@ module MetaRuby
                     end
                 end
                 connect(page, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
+                connect(page, SIGNAL('fileOpenClicked(const QUrl&)'), self, SLOT('fileOpenClicked(const QUrl&)'))
                 connect(manager, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
                 @page = page
             end
+
+            signals 'fileOpenClicked(const QUrl&)'
 
             # Call to render the given model
             #
