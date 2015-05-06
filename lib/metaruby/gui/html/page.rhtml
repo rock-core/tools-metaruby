@@ -5,6 +5,9 @@
     <link rel="stylesheet" href="<%= prefix %><%= File.join(ressource_dir, 'page.css') %>" type="text/css" />
     <script type="text/javascript" src="<%= prefix %><%= File.join(ressource_dir, 'jquery.min.js') %>"></script>
     <script type="text/javascript" src="<%= prefix %><%= File.join(ressource_dir, 'jquery.selectfilter.js') %>"></script>
+    <% javascript.each do |js| %>
+        <script type="text/javascript" src="<%= prefix %><%= File.expand_path(js, ressource_dir) %>"></script>
+    <% end %>
     <title><%= page_name %></title>
 </html>
 <body>

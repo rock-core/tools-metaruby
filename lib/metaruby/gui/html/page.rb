@@ -15,6 +15,7 @@ module MetaRuby::GUI
             attr_reader :fragments
             attr_reader :view
             attr_accessor :object_uris
+            attr_reader :javascript
 
             class Fragment
                 attr_accessor :title
@@ -30,6 +31,10 @@ module MetaRuby::GUI
                     @id = view_options[:id]
                     @buttons = view_options[:buttons]
                 end
+            end
+
+            def load_javascript(file)
+                javascript << File.expand_path(file)
             end
 
             def link_to(object, text = nil)
@@ -86,6 +91,7 @@ module MetaRuby::GUI
                 @fragments = []
                 @templates = Hash.new
                 @auto_id = 0
+                @javascript = Array.new
 
                 if page.kind_of?(Qt::WebPage)
                     page.link_delegation_policy = Qt::WebPage::DelegateAllLinks
