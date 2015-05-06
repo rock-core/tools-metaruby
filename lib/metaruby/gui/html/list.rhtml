@@ -10,7 +10,7 @@
 <%
 items.each_with_index do |(data, attributes), index|
     if attributes
-        div_attributes = attributes.map { |k, v| " \#{k}=\"\#{v}\"" }.join("")
+        div_attributes = attributes.map { |k, v| " #{k}=\"#{v}\"" }.join("")
     end
 %>
 <div class="short_doc<%= " list_alt" if index % 2 == 0 %>"<%= div_attributes %>>

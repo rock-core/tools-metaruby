@@ -15,7 +15,7 @@ module MetaRuby::GUI
             # @return [<Exception>] exceptions caught during element rendering
             attr_reader :registered_exceptions
 
-            Element = Struct.new :object, :format, :url, :text, :rendering_options
+            Element = Struct.new :object, :format, :url, :text, :rendering_options, :attributes
 
             def initialize(page)
                 super()
@@ -63,7 +63,10 @@ module MetaRuby::GUI
                     object_id_to_object[el.object.object_id] = el.object
                 end
 
-                links = links.map { |el| el.format % ["<a href=\"#{el.url}\">#{el.text}</a>"] }
+                links = links.map do |el|
+                    a_node = el.format % ["<a href=\"#{el.url}\">#{el.text}</a>"]
+                    [a_node, el.attributes || Hash.new]
+                end
                 page.render_list(title, links, push_options)
             end
 
