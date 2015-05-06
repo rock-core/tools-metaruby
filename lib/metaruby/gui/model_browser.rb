@@ -32,8 +32,6 @@ module MetaRuby
             # @return [ExceptionView] view that allows to display errors to the
             #   user
             attr_reader :exception_view
-            # @return [Qt::PushButton] button that causes model reloading
-            attr_reader :btn_reload_models
             # @return [RenderingManager] the object that manages all the
             #   rendering objects available
             attr_reader :manager
@@ -46,6 +44,15 @@ module MetaRuby
             attr_reader :history
             # @return [Integer] the index of the current link in the history
             attr_reader :history_index
+            # @return [Qt::BoxLayout] the main layout
+            attr_reader :main_layout
+
+            # @return [Qt::Splitter] the toplevel splitter (between model
+            #   browser and exception view)
+            attr_reader :vertical_splitter
+            # @return [Qt::Splitter] the horizontal splitter between the model browser and
+            #   the model view
+            attr_reader :central_splitter
 
             # A Page object with a #link_to method that is suitable for the
             # model browser
@@ -63,33 +70,29 @@ module MetaRuby
             def initialize(main = nil)
                 super
 
-                @manager = RenderingManager.new
-
-                main_layout = Qt::VBoxLayout.new(self)
-
-                menu_layout = Qt::HBoxLayout.new
-                main_layout.add_layout(menu_layout)
-                central_layout = Qt::HBoxLayout.new
-                main_layout.add_layout(central_layout, 3)
-                splitter = Qt::Splitter.new(self)
-                central_layout.add_widget(splitter)
-                @exception_view = ExceptionView.new
-                main_layout.add_widget(exception_view, 1)
-
                 @available_renderers = Hash.new
                 @registered_exceptions = Array.new
-
-                @btn_reload_models = Qt::PushButton.new("Reload", self)
-                menu_layout.add_widget(btn_reload_models)
-                menu_layout.add_stretch(1)
-                update_exceptions
 
                 @history = Array.new
                 @history_index = -1
 
-                add_central_widgets(splitter)
+                @manager = RenderingManager.new
+
+                @main_layout = Qt::VBoxLayout.new(self)
+                @vertical_splitter = Qt::Splitter.new(Qt::Vertical, self)
+                main_layout.add_widget(vertical_splitter)
+
+                @central_splitter = Qt::Splitter.new(vertical_splitter)
+                @exception_view = ExceptionView.new(vertical_splitter)
+                add_central_widgets(central_splitter)
+
+                vertical_splitter.add_widget(central_splitter)
+                vertical_splitter.add_widget(exception_view)
                 setTabOrder(model_selector, display)
-                setTabOrder(display, btn_reload_models)
+
+                update_exceptions
+
+
             end
 
             # Update the model selector after {register_type} got called
@@ -259,6 +262,11 @@ module MetaRuby
                     select_by_path(*h)
                 else select_by_module(h)
                 end
+            end
+
+            # Update the model list
+            def reload
+                model_selector.reload
             end
         end
     end
