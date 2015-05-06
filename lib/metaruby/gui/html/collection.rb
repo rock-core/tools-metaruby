@@ -83,6 +83,8 @@ module MetaRuby::GUI
                 if url.host == "metaruby" && url.path =~ /^\/#{Regexp.quote(namespace)}(\d+)/
                     object = object_id_to_object[Integer($1)]
                     render_element(object)
+                else
+                    super
                 end
             end
             slots 'linkClicked(const QUrl&)'
