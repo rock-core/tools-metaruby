@@ -115,6 +115,11 @@ module MetaRuby
         def provides(model_as_module)
             include model_as_module
         end
+
+        # Tests whether the given model-as-module is provided by self
+        def provides?(model_as_module)
+            self <= model_as_module
+        end
     end
 end
 
