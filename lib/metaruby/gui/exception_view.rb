@@ -23,10 +23,10 @@ module MetaRuby
             end
 
             TEMPLATE = <<-EOD
-            <html>
+            <head>
             <link rel="stylesheet" href="file://#{File.join(RESSOURCES_DIR, 'exception_view.css')}" type="text/css" />
             <script type="text/javascript" src="file://#{File.join(RESSOURCES_DIR, 'jquery.min.js')}"></script>
-            </html>
+            </head>
             <script type="text/javascript">
             $(document).ready(function () {
                 $("tr.backtrace").hide()
