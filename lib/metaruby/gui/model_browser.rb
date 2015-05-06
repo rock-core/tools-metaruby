@@ -91,8 +91,26 @@ module MetaRuby
                 setTabOrder(model_selector, display)
 
                 update_exceptions
+            end
 
+            def restore_from_settings(settings)
+                %w{central_splitter vertical_splitter}.each do |object_name|
+                    sizes = settings.value(object_name)
+                    if !sizes.null?
+                        sizes = sizes.to_list.map do |obj|
+                            obj.to_int
+                        end
+                        send(object_name).sizes = sizes
+                    end
+                end
+            end
 
+            def save_to_settings(settings)
+                %w{central_splitter vertical_splitter}.each do |object_name|
+                    sizes = send(object_name).sizes
+                    sizes = sizes.map { |o| Qt::Variant.new(o) }
+                    settings.set_value(object_name, Qt::Variant.new(sizes))
+                end
             end
 
             # Update the model selector after {register_type} got called
