@@ -131,15 +131,11 @@ module MetaRuby::GUI
                 page.main_frame.html = html
             end
 
-            def html(options = Hash.new)
-                options = Kernel.validate_options options, :ressource_dir => RESSOURCES_DIR
-                ressource_dir = options[:ressource_dir]
+            def html(ressource_dir: RESSOURCES_DIR)
                 load_template(PAGE_TEMPLATE).result(binding)
             end
 
-            def html_body(options = Hash.new)
-                options = Kernel.validate_options options, :ressource_dir => RESSOURCES_DIR
-                ressource_dir = options[:ressource_dir]
+            def html_body(ressource_dir: RESSOURCES_DIR)
                 load_template(PAGE_BODY_TEMPLATE).result(binding)
             end
 
