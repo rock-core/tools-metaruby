@@ -176,7 +176,7 @@ module MetaRuby
                         type_info[type].name
                     end.sort.join(",")
                     paths = [compute_path(info)]
-                    paths.concat info.children.map { |child| compute_path(child) }
+                    paths.concat info.children.map { |child| compute_keyword_string(child) }
                     info.keyword_string = "#{types};#{paths.join(",")}"
                 end
             end
