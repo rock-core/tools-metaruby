@@ -92,12 +92,14 @@ module MetaRuby::GUI
             def render_element(object, options = Hash.new)
                 page.restore
                 registered_exceptions.clear
+                options = Hash[id: "#{namespace}/currently_rendered_element"].merge(options)
                 begin
                     manager.render(object, options)
                 rescue ::Exception => e
                     registered_exceptions << e
                 end
                 emit updated
+                page.page.current_frame.scrollToAnchor(options[:id])
             end
 
             signals :updated
