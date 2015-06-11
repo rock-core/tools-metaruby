@@ -1,3 +1,5 @@
+require 'metaruby/gui/html'
+
 module MetaRuby
     module GUI
         # Widget that allows to display a list of exceptions
@@ -5,9 +7,12 @@ module MetaRuby
             RESSOURCES_DIR = File.expand_path('html', File.dirname(__FILE__))
 
             attr_reader :displayed_exceptions
+            attr_reader :metaruby_page
 
             def initialize(parent = nil)
                 super
+                @metaruby_page = HTML::Page.new(self.page)
+                connect(@metaruby_page, SIGNAL('fileOpenClicked(const QUrl&)'), self, SLOT('fileOpenClicked(const QUrl&)'))
                 @displayed_exceptions = []
                 self.focus_policy = Qt::NoFocus
             end
@@ -64,6 +69,10 @@ module MetaRuby
                     call_stack(0)
                 end
 
+                def pp_callstack(level)
+                    @backtrace[level..-1]
+                end
+
                 def pp_call_stack(level)
                     @backtrace[level..-1]
                 end
@@ -79,7 +88,7 @@ module MetaRuby
                 </td>
             </tr>
             <tr class="backtrace_summary">
-                <td>from <%= escape_html(origin_file) %>:<%= origin_line %>:in <%= escape_html(origin_method.to_s) %></td>
+                <td>from <%= origin_file %>:<%= origin_line %>:in <%= escape_html(origin_method.to_s) %></td>
             </tr>
             <tr class="backtrace" id="backtrace_filtered_<%= idx %>">
                 <td><%= render_backtrace(filtered_backtrace) %></td>
@@ -94,6 +103,7 @@ module MetaRuby
                 filtered_backtrace = BacktraceParser.new(Roby.filter_backtrace(e.backtrace, :force => true)).parse
                 origin_file, origin_line, origin_method = filtered_backtrace.
                     find { |file, _| Roby.app.app_file?(file) } || filtered_backtrace.first
+                origin_file = metaruby_page.link_to(Pathname.new(origin_file), origin_file, lineno: origin_line)
                 full_backtrace = BacktraceParser.new(e.backtrace).parse
                 ERB.new(EXCEPTION_TEMPLATE).result(binding)
             end
@@ -101,10 +111,11 @@ module MetaRuby
             def render_backtrace(backtrace)
                 result = []
                 backtrace.each do |file, line, method|
+                    file_link = metaruby_page.link_to(Pathname.new(file), file, lineno: line)
                     if Roby.app.app_file?(file)
-                        result << "  <span class=\"app_file\">#{escape_html(file)}:#{line}:in #{escape_html(method.to_s)}</span><br/>"
+                        result << "  <span class=\"app_file\">#{file_link}:#{line}:in #{escape_html(method.to_s)}</span><br/>"
                     else
-                        result << "  #{escape_html(file)}:#{line}:in #{escape_html(method.to_s)}<br/>"
+                        result << "  #{file_link}:#{line}:in #{escape_html(method.to_s)}<br/>"
                     end
                 end
                 result.join("\n")
@@ -118,6 +129,8 @@ module MetaRuby
                 @displayed_exceptions = list.dup
                 update_html
             end
+
+            signals 'fileOpenClicked(const QUrl&)'
         end
     end
 end

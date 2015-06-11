@@ -84,6 +84,7 @@ module MetaRuby
 
                 @central_splitter = Qt::Splitter.new(vertical_splitter)
                 @exception_view = ExceptionView.new(vertical_splitter)
+                connect(exception_view, SIGNAL('fileOpenClicked(const QUrl&)'), self, SLOT('fileOpenClicked(const QUrl&)'))
                 add_central_widgets(central_splitter)
 
                 vertical_splitter.add_widget(central_splitter)

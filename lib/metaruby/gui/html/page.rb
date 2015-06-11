@@ -109,7 +109,7 @@ module MetaRuby::GUI
 
             def uri_for(object)
                 if object.kind_of?(Pathname)
-                    "file://#{object}"
+                    "file://#{object.expand_path}"
                 else
                     object_uris[object]
                 end
