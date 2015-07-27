@@ -280,6 +280,12 @@ module MetaRuby
                     false
                 end
                 EOF
+            else
+                class_eval <<-EOF, __FILE__, __LINE__+1
+                def has_#{name}?(key)
+                    each_#{name}.any? { |obj| obj == key }
+                end
+                EOF
             end
 
             class_eval <<-EOF, __FILE__, __LINE__+1
