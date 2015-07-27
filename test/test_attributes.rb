@@ -207,6 +207,22 @@ class TC_Models < MiniTest::Test
 end
 
 describe MetaRuby::Attributes do
+    describe "#inherited_attribute" do
+        it "does not stop at an empty level" do
+            base = Class.new do
+                class << self
+                    extend MetaRuby::Attributes
+                    inherited_attribute(:var, :vars) { Array.new }
+                end
+            end
+            sub = Class.new(base)
+            subsub = Class.new(sub)
+            base.vars << 10
+            subsub.vars << 20
+            assert_equal [20, 10], subsub.each_var.to_a
+        end
+
+    end
     describe "#inherited_single_value_attribute" do
         attr_reader :base, :sub, :subsub
         describe "plain" do
