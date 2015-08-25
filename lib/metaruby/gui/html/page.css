@@ -41,6 +41,8 @@ display: block;
 .doc-above { margin-bottom: -.3em; padding-bottom: 0em; font-style: italic; }
 .doc-above p { margin-top: .1em; margin-bottom: .1em; }
 
+.preformatted { white-space: pre; }
+
 div.short_doc {
     margin-top: .2em;
     background-color: rgb(238,237,249);

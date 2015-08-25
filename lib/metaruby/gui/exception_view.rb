@@ -103,6 +103,9 @@ module MetaRuby
                 filtered_backtrace = BacktraceParser.new(Roby.filter_backtrace(e.backtrace, :force => true)).parse
                 origin_file, origin_line, origin_method = filtered_backtrace.
                     find { |file, _| Roby.app.app_file?(file) } || filtered_backtrace.first
+                if !origin_file
+                    origin_file, origin_line, origin_method = "<unknown>",0,"<unknown>"
+                end
                 origin_file = metaruby_page.link_to(Pathname.new(origin_file), origin_file, lineno: origin_line)
                 full_backtrace = BacktraceParser.new(e.backtrace).parse
                 ERB.new(EXCEPTION_TEMPLATE).result(binding)
