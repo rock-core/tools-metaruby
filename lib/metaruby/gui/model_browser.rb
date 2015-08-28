@@ -67,8 +67,8 @@ module MetaRuby
             end
 
 
-            def initialize(main = nil)
-                super
+            def initialize(main = nil, exception_view: nil)
+                super(main)
 
                 @available_renderers = Hash.new
                 @registered_exceptions = Array.new
@@ -83,7 +83,8 @@ module MetaRuby
                 main_layout.add_widget(vertical_splitter)
 
                 @central_splitter = Qt::Splitter.new(vertical_splitter)
-                @exception_view = ExceptionView.new(vertical_splitter)
+                @exception_view = (exception_view ||= ExceptionView.new)
+                exception_view.parent = vertical_splitter
                 connect(exception_view, SIGNAL('fileOpenClicked(const QUrl&)'), self, SLOT('fileOpenClicked(const QUrl&)'))
                 add_central_widgets(central_splitter)
 

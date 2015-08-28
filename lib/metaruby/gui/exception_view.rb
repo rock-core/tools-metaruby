@@ -27,6 +27,10 @@ module MetaRuby
                 update_html
             end
 
+            def each_exception(&block)
+                @displayed_exceptions.each(&block)
+            end
+
             TEMPLATE = <<-EOD
             <head>
             <link rel="stylesheet" href="file://#{File.join(RESSOURCES_DIR, 'exception_view.css')}" type="text/css" />
@@ -51,7 +55,7 @@ module MetaRuby
             </script>
             <body>
             <table class="exception_list">
-            <%= displayed_exceptions.enum_for(:each_with_index).map { |(e, reason), idx| render_exception(e, reason, idx) }.join("\\n") %>
+            <%= each_exception.each_with_index.map { |(e, reason), idx| render_exception(e, reason, idx) }.join("\\n") %>
             </table>
             </body>
             EOD
@@ -62,7 +66,7 @@ module MetaRuby
 
             class BacktraceParser
                 def initialize(backtrace)
-                    @backtrace = backtrace
+                    @backtrace = backtrace || []
                 end
 
                 def parse
@@ -78,7 +82,13 @@ module MetaRuby
                 end
             end
 
-            EXCEPTION_TEMPLATE = <<-EOF
+            EXCEPTION_TEMPLATE_WITHOUT_BACKTRACE = <<-EOF
+            <tr class="message">
+                <td id="<%= idx %>"><%= escape_html(reason) if reason %><pre><%= message.join("\n") %></pre>(<%= e.class %>)</td>
+            </tr>
+            EOF
+
+            EXCEPTION_TEMPLATE_WITH_BACKTRACE = <<-EOF
             <tr class="message">
                 <td id="<%= idx %>"><%= escape_html(reason) if reason %><pre><%= message.join("\n") %></pre>(<%= e.class %>)
                 <span class="backtrace_links">
@@ -98,24 +108,37 @@ module MetaRuby
             </tr>
             EOF
 
+            def filter_backtrace(backtrace)
+                backtrace
+            end
+
+            def user_file?(file)
+                true
+            end
+
             def render_exception(e, reason, idx)
                 message = PP.pp(e, "").split("\n").map { |line| escape_html(line) }
-                filtered_backtrace = BacktraceParser.new(Roby.filter_backtrace(e.backtrace, :force => true)).parse
-                origin_file, origin_line, origin_method = filtered_backtrace.
-                    find { |file, _| Roby.app.app_file?(file) } || filtered_backtrace.first
-                if !origin_file
-                    origin_file, origin_line, origin_method = "<unknown>",0,"<unknown>"
+
+                if e.backtrace && !e.backtrace.empty?
+                    filtered_backtrace = BacktraceParser.new(filter_backtrace(e.backtrace)).parse
+                    full_backtrace     = BacktraceParser.new(e.backtrace).parse
+                    origin_file, origin_line, origin_method =
+                        filtered_backtrace.find { |file, _| user_file?(file) } ||
+                        filtered_backtrace.first ||
+                        full_backtrace.first
+
+                    origin_file = metaruby_page.link_to(Pathname.new(origin_file), origin_file, lineno: origin_line)
+                    ERB.new(EXCEPTION_TEMPLATE_WITH_BACKTRACE).result(binding)
+                else
+                    ERB.new(EXCEPTION_TEMPLATE_WITHOUT_BACKTRACE).result(binding)
                 end
-                origin_file = metaruby_page.link_to(Pathname.new(origin_file), origin_file, lineno: origin_line)
-                full_backtrace = BacktraceParser.new(e.backtrace).parse
-                ERB.new(EXCEPTION_TEMPLATE).result(binding)
             end
 
             def render_backtrace(backtrace)
                 result = []
                 backtrace.each do |file, line, method|
                     file_link = metaruby_page.link_to(Pathname.new(file), file, lineno: line)
-                    if Roby.app.app_file?(file)
+                    if user_file?(file)
                         result << "  <span class=\"app_file\">#{file_link}:#{line}:in #{escape_html(method.to_s)}</span><br/>"
                     else
                         result << "  #{file_link}:#{line}:in #{escape_html(method.to_s)}<br/>"
