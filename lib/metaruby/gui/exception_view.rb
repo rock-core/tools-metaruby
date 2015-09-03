@@ -156,6 +156,10 @@ module MetaRuby
                 update_html
             end
 
+            def contents_height
+                self.page.main_frame.contents_size.height
+            end
+
             signals 'fileOpenClicked(const QUrl&)'
         end
     end
