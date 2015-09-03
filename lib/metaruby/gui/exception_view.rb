@@ -84,13 +84,13 @@ module MetaRuby
 
             EXCEPTION_TEMPLATE_WITHOUT_BACKTRACE = <<-EOF
             <tr class="message">
-                <td id="<%= idx %>"><%= escape_html(reason) if reason %><pre><%= message.join("\n") %></pre>(<%= e.class %>)</td>
+                <td id="<%= idx %>"><%= escape_html(reason) if reason %><pre><%= message.join("\n") %></pre></td>
             </tr>
             EOF
 
             EXCEPTION_TEMPLATE_WITH_BACKTRACE = <<-EOF
             <tr class="message">
-                <td id="<%= idx %>"><%= escape_html(reason) if reason %><pre><%= message.join("\n") %></pre>(<%= e.class %>)
+                <td id="<%= idx %>"><%= escape_html(reason) if reason %><pre><%= message.join("\n") %></pre>
                 <span class="backtrace_links">
                     (show: <a class="backtrace_toggle_filtered" id="<%= idx %>">filtered backtrace</a>,
                            <a class=\"backtrace_toggle_full\" id="<%= idx %>">full backtrace</a>)
