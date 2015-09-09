@@ -239,6 +239,10 @@ module MetaRuby
 
             def find_index_by_path(*path)
                 current = id_to_module.last
+                if path.first == current.name
+                    path.shift
+                end
+
                 path.each do |name|
                     current = id_to_module.find do |info|
                         info.name == name && info.parent == current
