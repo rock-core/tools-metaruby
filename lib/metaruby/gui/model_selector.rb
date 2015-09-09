@@ -229,7 +229,7 @@ module MetaRuby
             def select_by_path(*path)
                 if index = browser_model.find_index_by_path(*path)
                     index = map_index_from_source(index)
-                    model_list.selection_model.set_current_index(index, Qt::ItemSelectionModel::ClearAndSelect)
+                    model_list.current_index = index
                     true
                 end
             end
@@ -242,7 +242,7 @@ module MetaRuby
             def select_by_module(model)
                 if index = browser_model.find_index_by_model(model)
                     index = map_index_from_source(index)
-                    model_list.selection_model.set_current_index(index, Qt::ItemSelectionModel::ClearAndSelect)
+                    model_list.current_index = index
                     true
                 end
             end
