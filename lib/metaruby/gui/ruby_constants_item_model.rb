@@ -29,6 +29,7 @@ module MetaRuby
             end
 
             def reload
+                begin_reset_model
                 @id_to_module = []
                 @filtered_out_modules = Set.new
                 
@@ -41,8 +42,10 @@ module MetaRuby
 
                 @object_paths = Hash.new
                 generate_paths(object_paths, info, "")
+            ensure
+                end_reset_model
+            end
 
-                emit dataChanged(Qt::ModelIndex.new, Qt::ModelIndex.new)
             end
 
             def generate_paths(paths, info, current)
