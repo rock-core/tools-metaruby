@@ -19,6 +19,9 @@ module MetaRuby
                 super
 
                 @type_info = Hash.new
+                @browser_model = RubyConstantsItemModel.new(type_info) do |mod|
+                    model?(mod)
+                end
                 @type_filters = Hash.new
 
                 layout = Qt::VBoxLayout.new(self)
@@ -141,6 +144,7 @@ module MetaRuby
                 model_filter.dynamic_sort_filter = true
                 model_filter.filter_role = Qt::UserRole
                 model_list.model = model_filter
+                model_filter.source_model = browser_model
 
                 @filter_box = Qt::LineEdit.new(self)
                 filter_box.connect(SIGNAL('textChanged(QString)')) do |text|
@@ -175,11 +179,7 @@ module MetaRuby
                     end
                 end
 
-                @browser_model = RubyConstantsItemModel.new(type_info) do |mod|
-                    model?(mod)
-                end
                 browser_model.reload
-                model_filter.source_model = browser_model
 
                 if current_path && !select_by_path(*current_path)
                     select_by_module(current_module)
@@ -229,7 +229,7 @@ module MetaRuby
             def select_by_path(*path)
                 if index = browser_model.find_index_by_path(*path)
                     index = map_index_from_source(index)
-                    model_list.selection_model.set_current_index(index, Qt::ItemSelectionModel::ClearAndSelect)
+                    model_list.current_index = index
                     true
                 end
             end
@@ -242,7 +242,7 @@ module MetaRuby
             def select_by_module(model)
                 if index = browser_model.find_index_by_model(model)
                     index = map_index_from_source(index)
-                    model_list.selection_model.set_current_index(index, Qt::ItemSelectionModel::ClearAndSelect)
+                    model_list.current_index = index
                     true
                 end
             end

@@ -29,6 +29,7 @@ module MetaRuby
             end
 
             def reload
+                begin_reset_model
                 @id_to_module = []
                 @filtered_out_modules = Set.new
                 
@@ -41,8 +42,12 @@ module MetaRuby
 
                 @object_paths = Hash.new
                 generate_paths(object_paths, info, "")
+            ensure
+                end_reset_model
+            end
 
-                emit dataChanged(Qt::ModelIndex.new, Qt::ModelIndex.new)
+            def root_info
+                id_to_module.last
             end
 
             def generate_paths(paths, info, current)
@@ -205,7 +210,7 @@ module MetaRuby
 
             def parent(child)
                 if info = info_from_index(child)
-                    if info.parent
+                    if info.parent && info.parent != root_info
                         return create_index(info.parent.row, 0, info.parent.id)
                     end
                 end
@@ -239,6 +244,10 @@ module MetaRuby
 
             def find_index_by_path(*path)
                 current = id_to_module.last
+                if path.first == current.name
+                    path.shift
+                end
+
                 path.each do |name|
                     current = id_to_module.find do |info|
                         info.name == name && info.parent == current
