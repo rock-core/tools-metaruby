@@ -2,14 +2,7 @@
     <h1><%= title %></h1>
 <% end %>
 <% fragments.each do |fragment| %>
-    <% if fragment.id %>
-        <div id="<%= fragment.id %>">
-    <% end %>
-        <% if fragment.title %>
-            <h2><%= fragment.title %></h2>
-        <% end %>
-        <%= HTML.render_button_bar(fragment.buttons) %>
-        <%= fragment.html %>
+    <%= html_fragment(fragment, ressource_dir: ressource_dir) %>
     <% if fragment.id %>
         </div>
     <% end %>

@@ -1,0 +1,5 @@
+<% if fragment.id %><div id="<%= fragment.id %>"><% end %>
+<% if fragment.title %><h2><%= fragment.title %></h2><% end %>
+    <%= HTML.render_button_bar(fragment.buttons) %>
+    <%= fragment.html %>
+<% if fragment.id %></div><% end %>
