@@ -69,6 +69,7 @@ module MetaRuby::GUI
 
             PAGE_TEMPLATE = File.join(RESSOURCES_DIR, "page.rhtml")
             PAGE_BODY_TEMPLATE = File.join(RESSOURCES_DIR, "page_body.rhtml")
+            FRAGMENT_TEMPLATE  = File.join(RESSOURCES_DIR, "fragment.rhtml")
             LIST_TEMPLATE = File.join(RESSOURCES_DIR, "list.rhtml")
             ASSETS = %w{page.css jquery.min.js jquery.selectfilter.js}
 
@@ -137,6 +138,10 @@ module MetaRuby::GUI
 
             def html_body(ressource_dir: RESSOURCES_DIR)
                 load_template(PAGE_BODY_TEMPLATE).result(binding)
+            end
+
+            def html_fragment(fragment, ressource_dir: RESSOURCES_DIR)
+                load_template(FRAGMENT_TEMPLATE).result(binding)
             end
 
             def find_button_by_url(url)
@@ -230,7 +235,7 @@ module MetaRuby::GUI
                     if fragment
                         fragment.html = html
                         element = find_first_element("div##{fragment.id}")
-                        element.replace("<div id=\"#{id}\">#{html}</div>")
+                        element.replace(html_fragment(fragment))
                         return
                     end
                 end
