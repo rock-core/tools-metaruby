@@ -1,12 +1,12 @@
-<% if options[:filter] %>
+<% if filter %>
 <script type="text/javascript">
   jQuery(document).ready(function(){
-  jQuery("div#<%= push_options[:id] %>-list").selectFilter();
+  jQuery("div#<%= id %>-list").selectFilter();
 });
 </script>
 <% end %>
 
-<div name="index_filter" id="<%= push_options[:id] %>-list">
+<div name="index_filter" id="<%= id %>-list">
 <%
 items.each_with_index do |(data, attributes), index|
     if attributes
