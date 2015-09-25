@@ -15,7 +15,13 @@ module MetaRuby::GUI
             attr_reader :fragments
             attr_reader :view
             attr_accessor :object_uris
-            attr_reader :javascript
+            attr_reader :head
+            attr_reader :scripts
+
+            # Object used to render exceptions in {#push_exception}
+            #
+            # It is set by {#enable_exception_rendering}
+            attr_reader :exception_rendering
 
             class Fragment
                 attr_accessor :title
@@ -31,8 +37,30 @@ module MetaRuby::GUI
                 end
             end
 
+            def add_to_setup(obj)
+                add_to_head(obj.head)
+                add_script(obj.scripts)
+            end
+
+            def add_to_head(html)
+                head << html
+            end
+
+            def add_script(html)
+                scripts << html
+            end
+
+            def path_in_resource(path)
+                if Pathname.new(path).absolute?
+                    path
+                else
+                    File.join('${RESOURCE_DIR}', path)
+                end
+            end
+
             def load_javascript(file)
-                javascript << File.expand_path(file)
+                add_to_head(
+                    "<script type=\"text/javascript\" src=\"#{path_in_resource(file)}\"></script>")
             end
 
             def link_to(object, text = nil, **args)
@@ -93,10 +121,11 @@ module MetaRuby::GUI
             def initialize(page)
                 super()
                 @page = page
+                @head = Array.new
+                @scripts = Array.new
                 @fragments = []
                 @templates = Hash.new
                 @auto_id = 0
-                @javascript = Array.new
 
                 if page.kind_of?(Qt::WebPage)
                     page.link_delegation_policy = Qt::WebPage::DelegateAllLinks
@@ -244,6 +273,16 @@ module MetaRuby::GUI
 
             def auto_id
                 "metaruby-html-page-fragment-#{@auto_id += 1}"
+            end
+
+            def enable_exception_rendering(renderer = ExceptionRendering.new(self))
+                add_to_setup(renderer)
+                @exception_rendering = renderer
+            end
+
+            def push_exception(title, e, id: auto_id, **options)
+                html = exception_rendering.render(e, nil, id)
+                push(title, html, id: id, **options)
             end
 
             # Create an item for the rendering in tables

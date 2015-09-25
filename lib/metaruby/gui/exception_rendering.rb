@@ -36,7 +36,7 @@ module MetaRuby
             SCRIPTS = <<-EOD
             <script type="text/javascript">
             $(document).ready(function () {
-                $("tr.backtrace").hide()
+                $(".backtrace").hide()
                 $("a.backtrace_toggle_filtered").click(function (event) {
                         var eventId = $(this).attr("id");
                         $("#backtrace_full_" + eventId).hide();
@@ -82,29 +82,26 @@ module MetaRuby
             end
 
             EXCEPTION_TEMPLATE_WITHOUT_BACKTRACE = <<-EOF
-            <tr class="message">
-                <td id="<%= idx %>"><%= HTML.escape_html(reason) if reason %><pre><%= message.join("\n") %></pre></td>
-            </tr>
+            <div class="message" id="<%= id %>"><pre><%= message.join("\n") %></pre></div>
             EOF
 
             EXCEPTION_TEMPLATE_WITH_BACKTRACE = <<-EOF
-            <tr class="message">
-                <td id="<%= idx %>"><%= HTML.escape_html(reason) if reason %><pre><%= message.join("\n") %></pre>
+            <div class="message" id="<%= id %>">
+                <pre><%= message.join("\n") %></pre>
                 <span class="backtrace_links">
-                    (show: <a class="backtrace_toggle_filtered" id="<%= idx %>">filtered backtrace</a>,
-                           <a class=\"backtrace_toggle_full\" id="<%= idx %>">full backtrace</a>)
+                    (show: <a class="backtrace_toggle_filtered" id="<%= id %>">filtered backtrace</a>,
+                           <a class=\"backtrace_toggle_full\" id="<%= id %>">full backtrace</a>)
                 </span>
-                </td>
-            </tr>
-            <tr class="backtrace_summary">
-                <td>from <%= origin_file %>:<%= origin_line %>:in <%= HTML.escape_html(origin_method.to_s) %></td>
-            </tr>
-            <tr class="backtrace" id="backtrace_filtered_<%= idx %>">
-                <td><%= render_backtrace(filtered_backtrace) %></td>
-            </tr>
-            <tr class="backtrace" id="backtrace_full_<%= idx %>">
-                <td><%= render_backtrace(full_backtrace) %></td>
-            </tr>
+            </div>
+            <div class="backtrace_summary">
+                from <%= origin_file %>:<%= origin_line %>:in <%= HTML.escape_html(origin_method.to_s) %>
+            </div>
+            <div class="backtrace" id="backtrace_filtered_<%= id %>">
+                <%= render_backtrace(filtered_backtrace) %>
+            </div>
+            <div class="backtrace" id="backtrace_full_<%= id %>">
+                <%= render_backtrace(full_backtrace) %>
+            </div>
             EOF
 
             # Filters the backtrace to remove framework parts that are not
@@ -125,7 +122,31 @@ module MetaRuby
                 user_file_filter[file]
             end
 
-            def render(e, reason, idx)
+            @@exception_id = 0
+
+            def allocate_exception_id
+                @@exception_id += 1
+            end
+
+            def render(e, reason = nil, id = allocate_exception_id)
+                counter = 0
+                html = []
+                seen = Set.new
+                each_exception_from(e) do |exception|
+                    if !seen.include?(exception)
+                        seen << exception
+                        html << render_single_exception(e, "#{id}-#{counter += 1}")
+                    end
+                end
+                html.join("\n")
+            end
+
+            def each_exception_from(e)
+                return enum_for(__method__) if !block_given?
+                yield(e)
+            end
+
+            def render_single_exception(e, id)
                 message = PP.pp(e, "").split("\n").
                     map { |line| HTML.escape_html(line) }
 
