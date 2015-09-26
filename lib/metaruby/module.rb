@@ -1,5 +1,5 @@
-require 'utilrb/value_set'
 require 'utilrb/module/const_defined_here_p'
+
 module MetaRuby
     # Extend in modules that are used as models
     #
@@ -63,7 +63,7 @@ module MetaRuby
         attr_accessor :definition_location
 
         # Set of models that this model provides
-        attribute(:parent_models) { ValueSet.new }
+        attribute(:parent_models) { Set.new }
 
         # True if this model is a root model
         attr_predicate :root?, true
@@ -150,7 +150,7 @@ module MetaRuby
                 self.supermodel = model.supermodel
             end
             self.supermodel.register_submodel(self)
-            self.parent_models |= model.parent_models
+            self.parent_models.merge(model.parent_models)
             self.parent_models << model
         end
     end
