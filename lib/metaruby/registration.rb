@@ -21,8 +21,8 @@ module MetaRuby
         # @return [Boolean]
         attr_predicate :permanent_model?, true
 
-        # [ValueSet] the set of models that are children of this one
-        attribute(:submodels) { ValueSet.new }
+        # @return [Set] the set of models that are children of this one
+        attribute(:submodels) { Set.new }
 
         # Returns the model that is parent of this one
         #
@@ -141,10 +141,10 @@ module MetaRuby
         #
         # This is usually not called directly. Use #clear_submodels instead
         #
-        # @param [ValueSet] set the set of submodels to remove
+        # @param [Set] set the set of submodels to remove
         def deregister_submodels(set)
             current_size = submodels.size
-            submodels.difference!(set.to_value_set)
+            submodels.subtract(set)
             if m = supermodel
                 m.deregister_submodels(set)
             end

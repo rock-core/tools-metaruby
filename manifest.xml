@@ -1,9 +1,10 @@
 <package>
-  <description brief="Modelling using the Ruby language as a metamodel">
+  <description brief="">
   </description>
   <maintainer>Sylvain Joyeux/sylvain.joyeux@m4x.org</maintainer>
   <license>LGPLv3</license>
 
+  <depend package="bundler" />
   <depend package="utilrb" />
   <depend package="kramdown" optional="1" />
 </package>

@@ -26,7 +26,7 @@ class TC_Models < MiniTest::Test
     def check_inherited_attribute(base, derived)
 	assert(base.respond_to?(:each_signature))
 	assert(base.respond_to?(:signatures))
-	assert(!base.respond_to?(:has_signature?))
+	assert(base.respond_to?(:has_signature?))
 	assert(!base.respond_to?(:find_signatures))
 
 	assert(base.respond_to?(:each_mapped))

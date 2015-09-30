@@ -1,5 +1,3 @@
-VERSION = "0.1.0"
-
 require 'utilrb/object/attribute'
 
 require 'metaruby/inherited_attribute'

@@ -3,7 +3,9 @@
 if ENV['TEST_ENABLE_COVERAGE'] == '1'
     begin
         require 'simplecov'
-        SimpleCov.start
+        SimpleCov.start do
+            add_filter "test"
+        end
     rescue LoadError
         require 'metaruby'
         MetaRuby.warn "coverage is disabled because the 'simplecov' gem cannot be loaded"
@@ -16,7 +18,7 @@ end
 require 'metaruby'
 require 'minitest/autorun'
 require 'minitest/spec'
-require 'flexmock/test_unit'
+require 'flexmock/minitest'
 
 if ENV['TEST_ENABLE_PRY'] != '0'
     begin
@@ -41,31 +43,13 @@ module MetaRuby
     #   end
     #
     module SelfTest
-        if defined? FlexMock
-            include FlexMock::ArgumentTypes
-            include FlexMock::MockContainer
-        end
-
         def setup
             # Setup code for all the tests
         end
 
         def teardown
-            if defined? FlexMock
-                flexmock_teardown
-            end
-            # Teardown code for all the tests
         end
     end
-end
-
-# Workaround a problem with flexmock and minitest not being compatible with each
-# other (currently). See github.com/jimweirich/flexmock/issues/15.
-if defined?(FlexMock) && !FlexMock::TestUnitFrameworkAdapter.method_defined?(:assertions)
-    class FlexMock::TestUnitFrameworkAdapter
-        attr_accessor :assertions
-    end
-    FlexMock.framework_adapter.assertions = 0
 end
 
 module Minitest
