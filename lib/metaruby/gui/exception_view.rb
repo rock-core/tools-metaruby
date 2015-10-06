@@ -1,20 +1,40 @@
 require 'metaruby/gui/html'
+require 'metaruby/gui/exception_rendering'
 
 module MetaRuby
     module GUI
         # Widget that allows to display a list of exceptions
         class ExceptionView < Qt::WebView
-            RESSOURCES_DIR = File.expand_path('html', File.dirname(__FILE__))
-
             attr_reader :displayed_exceptions
+
+            # @return [HTML::Page] the page object that allows to infer
             attr_reader :metaruby_page
+
+            # @return [#head,#scripts,#render] an object that allows to render
+            #   exceptions in HTML
+            attr_reader :exception_rendering
 
             def initialize(parent = nil)
                 super
-                @metaruby_page = HTML::Page.new(self.page)
-                connect(@metaruby_page, SIGNAL('fileOpenClicked(const QUrl&)'), self, SLOT('fileOpenClicked(const QUrl&)'))
+
                 @displayed_exceptions = []
                 self.focus_policy = Qt::NoFocus
+
+                @metaruby_page = HTML::Page.new(self.page)
+                connect(@metaruby_page, SIGNAL('fileOpenClicked(const QUrl&)'),
+                        self, SLOT('fileOpenClicked(const QUrl&)'))
+                @exception_rendering = ExceptionRendering.new(metaruby_page)
+
+                if ENV['METARUBY_GUI_DEBUG_HTML']
+                    page.settings.setAttribute(Qt::WebSettings::DeveloperExtrasEnabled, true)
+                    @inspector = Qt::WebInspector.new
+                    @inspector.page = page
+                    @inspector.show
+                end
+            end
+
+            def user_file_filter=(filter)
+                exception_rendering.user_file_filter = filter
             end
 
             def push(exception, reason = nil)
@@ -33,122 +53,20 @@ module MetaRuby
 
             TEMPLATE = <<-EOD
             <head>
-            <link rel="stylesheet" href="file://#{File.join(RESSOURCES_DIR, 'exception_view.css')}" type="text/css" />
-            <script type="text/javascript" src="file://#{File.join(RESSOURCES_DIR, 'jquery.min.js')}"></script>
+            <%= exception_rendering.head %>
             </head>
-            <script type="text/javascript">
-            $(document).ready(function () {
-                $("tr.backtrace").hide()
-                $("a.backtrace_toggle_filtered").click(function (event) {
-                        var eventId = $(this).attr("id");
-                        $("#backtrace_full_" + eventId).hide();
-                        $("#backtrace_filtered_" + eventId).toggle();
-                        event.preventDefault();
-                        });
-                $("a.backtrace_toggle_full").click(function (event) {
-                        var eventId = $(this).attr("id");
-                        $("#backtrace_full_" + eventId).toggle();
-                        $("#backtrace_filtered_" + eventId).hide();
-                        event.preventDefault();
-                        });
-            });
-            </script>
+            <%= exception_rendering.scripts %>
             <body>
             <table class="exception_list">
-            <%= each_exception.each_with_index.map { |(e, reason), idx| render_exception(e, reason, idx) }.join("\\n") %>
+            <%= each_exception.each_with_index.map do |(e, reason), idx|
+                    exception_rendering.render(e, reason, idx)
+                end.join("\\n") %>
             </table>
             </body>
             EOD
 
             def update_html
                 self.html = ERB.new(TEMPLATE).result(binding)
-            end
-
-            class BacktraceParser
-                def initialize(backtrace)
-                    @backtrace = backtrace || []
-                end
-
-                def parse
-                    call_stack(0)
-                end
-
-                def pp_callstack(level)
-                    @backtrace[level..-1]
-                end
-
-                def pp_call_stack(level)
-                    @backtrace[level..-1]
-                end
-            end
-
-            EXCEPTION_TEMPLATE_WITHOUT_BACKTRACE = <<-EOF
-            <tr class="message">
-                <td id="<%= idx %>"><%= escape_html(reason) if reason %><pre><%= message.join("\n") %></pre></td>
-            </tr>
-            EOF
-
-            EXCEPTION_TEMPLATE_WITH_BACKTRACE = <<-EOF
-            <tr class="message">
-                <td id="<%= idx %>"><%= escape_html(reason) if reason %><pre><%= message.join("\n") %></pre>
-                <span class="backtrace_links">
-                    (show: <a class="backtrace_toggle_filtered" id="<%= idx %>">filtered backtrace</a>,
-                           <a class=\"backtrace_toggle_full\" id="<%= idx %>">full backtrace</a>)
-                </span>
-                </td>
-            </tr>
-            <tr class="backtrace_summary">
-                <td>from <%= origin_file %>:<%= origin_line %>:in <%= escape_html(origin_method.to_s) %></td>
-            </tr>
-            <tr class="backtrace" id="backtrace_filtered_<%= idx %>">
-                <td><%= render_backtrace(filtered_backtrace) %></td>
-            </tr>
-            <tr class="backtrace" id="backtrace_full_<%= idx %>">
-                <td><%= render_backtrace(full_backtrace) %></td>
-            </tr>
-            EOF
-
-            def filter_backtrace(backtrace)
-                backtrace
-            end
-
-            def user_file?(file)
-                true
-            end
-
-            def render_exception(e, reason, idx)
-                message = PP.pp(e, "").split("\n").map { |line| escape_html(line) }
-
-                if e.backtrace && !e.backtrace.empty?
-                    filtered_backtrace = BacktraceParser.new(filter_backtrace(e.backtrace)).parse
-                    full_backtrace     = BacktraceParser.new(e.backtrace).parse
-                    origin_file, origin_line, origin_method =
-                        filtered_backtrace.find { |file, _| user_file?(file) } ||
-                        filtered_backtrace.first ||
-                        full_backtrace.first
-
-                    origin_file = metaruby_page.link_to(Pathname.new(origin_file), origin_file, lineno: origin_line)
-                    ERB.new(EXCEPTION_TEMPLATE_WITH_BACKTRACE).result(binding)
-                else
-                    ERB.new(EXCEPTION_TEMPLATE_WITHOUT_BACKTRACE).result(binding)
-                end
-            end
-
-            def render_backtrace(backtrace)
-                result = []
-                backtrace.each do |file, line, method|
-                    file_link = metaruby_page.link_to(Pathname.new(file), file, lineno: line)
-                    if user_file?(file)
-                        result << "  <span class=\"app_file\">#{file_link}:#{line}:in #{escape_html(method.to_s)}</span><br/>"
-                    else
-                        result << "  #{file_link}:#{line}:in #{escape_html(method.to_s)}<br/>"
-                    end
-                end
-                result.join("\n")
-            end
-
-            def escape_html(l)
-                l.gsub('<', '&lt;').gsub('>', '&gt;')
             end
 
             def exceptions=(list)

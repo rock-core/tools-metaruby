@@ -15,7 +15,13 @@ module MetaRuby::GUI
             attr_reader :fragments
             attr_reader :view
             attr_accessor :object_uris
-            attr_reader :javascript
+            attr_reader :head
+            attr_reader :scripts
+
+            # Object used to render exceptions in {#push_exception}
+            #
+            # It is set by {#enable_exception_rendering}
+            attr_reader :exception_rendering
 
             class Fragment
                 attr_accessor :title
@@ -23,21 +29,41 @@ module MetaRuby::GUI
                 attr_accessor :id
                 attr_reader :buttons
 
-                def initialize(title, html, view_options = Hash.new)
-                    view_options = Kernel.validate_options view_options,
-                        :id => nil, :buttons => []
+                def initialize(title, html, id: nil, buttons: Array.new)
                     @title = title
                     @html = html
-                    @id = view_options[:id]
-                    @buttons = view_options[:buttons]
+                    @id = id
+                    @buttons = buttons
+                end
+            end
+
+            def add_to_setup(obj)
+                add_to_head(obj.head)
+                add_script(obj.scripts)
+            end
+
+            def add_to_head(html)
+                head << html
+            end
+
+            def add_script(html)
+                scripts << html
+            end
+
+            def path_in_resource(path)
+                if Pathname.new(path).absolute?
+                    path
+                else
+                    File.join('${RESOURCE_DIR}', path)
                 end
             end
 
             def load_javascript(file)
-                javascript << File.expand_path(file)
+                add_to_head(
+                    "<script type=\"text/javascript\" src=\"#{path_in_resource(file)}\"></script>")
             end
 
-            def link_to(object, text = nil, args = Hash.new)
+            def link_to(object, text = nil, **args)
                 text = HTML.escape_html(text || object.name || "<anonymous>")
                 if uri = uri_for(object)
                     if uri !~ /^\w+:\/\//
@@ -95,10 +121,11 @@ module MetaRuby::GUI
             def initialize(page)
                 super()
                 @page = page
+                @head = Array.new
+                @scripts = Array.new
                 @fragments = []
                 @templates = Hash.new
                 @auto_id = 0
-                @javascript = Array.new
 
                 if page.kind_of?(Qt::WebPage)
                     page.link_delegation_policy = Qt::WebPage::DelegateAllLinks
@@ -225,8 +252,8 @@ module MetaRuby::GUI
             #   fragment replaces the existing one, and the view is updated
             #   accordingly.
             #
-            def push(title, html, view_options = Hash.new)
-                if id = view_options[:id]
+            def push(title, html, id: id, **view_options)
+                if id
                     # Check whether we should replace the existing content or
                     # push it new
                     fragment = fragments.find do |fragment|
@@ -240,12 +267,22 @@ module MetaRuby::GUI
                     end
                 end
 
-                fragments << Fragment.new(title, html, Hash[:id => auto_id].merge(view_options))
+                fragments << Fragment.new(title, html, id: auto_id, **view_options)
                 update_html
             end
 
             def auto_id
                 "metaruby-html-page-fragment-#{@auto_id += 1}"
+            end
+
+            def enable_exception_rendering(renderer = ExceptionRendering.new(self))
+                add_to_setup(renderer)
+                @exception_rendering = renderer
+            end
+
+            def push_exception(title, e, id: auto_id, **options)
+                html = exception_rendering.render(e, nil, id)
+                push(title, html, id: id, **options)
             end
 
             # Create an item for the rendering in tables
@@ -269,33 +306,32 @@ module MetaRuby::GUI
             #   added at the top of the page. You must provide a :id option for
             #   the list for this to work
             # @option (see #push)
-            def render_list(title, items, options = Hash.new)
-                options, push_options = Kernel.filter_options options, :filter => false, :id => nil
-                if options[:filter] && !options[:id]
+            def render_list(title, items, filter: false, id: nil, **push_options)
+                if filter && !id
                     raise ArgumentError, ":filter is true, but no :id has been given"
                 end
                 html = load_template(LIST_TEMPLATE).result(binding)
-                push(title, html, push_options.merge(:id => options[:id]))
+                push(title, html, push_options.merge(id: id))
             end
 
             signals 'updated()'
 
-            def self.to_html_page(object, renderer, options = Hash.new)
+            def self.to_html_page(object, renderer, **options)
                 webpage = HTMLPage.new
                 page = new(webpage)
-                renderer.new(page).render(object, options)
+                renderer.new(page).render(object, **options)
                 page
             end
 
             # Renders an object to HTML using a given rendering class
-            def self.to_html(object, renderer, options = Hash.new)
-                html_options, options = Kernel.filter_options options, :ressource_dir => RESSOURCES_DIR
-                to_html_page(object, renderer, options).html(html_options)
+            def self.to_html(object, renderer, ressource_dir: RESSOURCES_DIR, **options)
+                to_html_page(object, renderer, **options).
+                    html(ressource_dir: ressource_dir)
             end
 
-            def self.to_html_body(object, renderer, options = Hash.new)
-                html_options, options = Kernel.filter_options options, :ressource_dir => RESSOURCES_DIR
-                to_html_page(object, renderer, options).html_body(html_options)
+            def self.to_html_body(object, renderer, ressource_dir: RESSOURCES_DIR, **options)
+                to_html_page(object, renderer, **options).
+                    html_body(ressource_dir: ressource_dir)
             end
         end
     end
