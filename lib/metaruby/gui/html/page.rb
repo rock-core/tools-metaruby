@@ -252,7 +252,7 @@ module MetaRuby::GUI
             #   fragment replaces the existing one, and the view is updated
             #   accordingly.
             #
-            def push(title, html, id: id, **view_options)
+            def push(title, html, id: auto_id, **view_options)
                 if id
                     # Check whether we should replace the existing content or
                     # push it new
@@ -267,7 +267,7 @@ module MetaRuby::GUI
                     end
                 end
 
-                fragments << Fragment.new(title, html, id: auto_id, **view_options)
+                fragments << Fragment.new(title, html, id: id, **view_options)
                 update_html
             end
 
