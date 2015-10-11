@@ -88,20 +88,16 @@ module MetaRuby
 
         # Creates a new DataServiceModel that is a submodel of +self+
         #
-        # @param [Hash] options the option hash
-        # @option options [String] :name the submodel name. Use this option
+        # @param [String] name the submodel name. Use this option
         #   only for "anonymous" models, i.e. models that won't be
         #   registered on a Ruby constant
-        # @option options [Class] :type (self.class) the type of the submodel
+        # @param [Class] type (self.class) the type of the submodel
         #
-        def new_submodel(options = Hash.new, &block)
-            options, submodel_options = Kernel.filter_options options,
-                :name => nil, :type => self.class
-
-            model = options[:type].new
+        def new_submodel(name: nil, type: self.class, **submodel_options, &block)
+            model = type.new
             model.extend ModelAsModule
-            if options[:name]
-                model.name = options[:name].dup
+            if name
+                model.name = name.dup
             end
             model.definition_location = call_stack
             setup_submodel(model, submodel_options, &block)

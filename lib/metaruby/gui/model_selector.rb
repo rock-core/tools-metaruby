@@ -206,8 +206,7 @@ module MetaRuby
             # @option options [Boolean] :reset_filter (true) if true, the filter
             #   is reset if the requested index is currently filtered out
             # @return [Qt::ModelIndex] an index filtered by {model_filter}
-            def map_index_from_source(source_index, options = Hash.new)
-                options = Kernel.validate_options options, :reset_filter => true
+            def map_index_from_source(source_index, reset_filter: true)
                 index = model_filter.map_from_source(source_index)
                 if !index
                     return

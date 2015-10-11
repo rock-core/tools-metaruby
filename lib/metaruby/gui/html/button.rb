@@ -7,26 +7,21 @@ module MetaRuby
                 attr_reader :off_text
                 attr_accessor :state
 
-                def initialize(id, options = Hash.new)
-                    options = Kernel.validate_options options,
-                        :text => nil,
-                        :on_text => "#{id} (on)", :off_text => "#{id} (off)",
-                        :state => false
-
+                def initialize(id, text: nil, on_text: "#{id} (on)", off_text: "#{id} (off)", state: false)
                     if id[0, 1] != '/'
                         id = "/#{id}"
                     elsif id[-1, 1] == '/'
                         id = id[0..-2]
                     end
                     @id = id
-                    if options[:text]
-                        @on_text = options[:text]
-                        @off_text = options[:text]
+                    if text
+                        @on_text = text
+                        @off_text = text
                         @state = true
                     else
-                        @on_text = options[:on_text]
-                        @off_text = options[:off_text]
-                        @state = options[:state]
+                        @on_text = on_text
+                        @off_text = off_text
+                        @state = state
                     end
                 end
 

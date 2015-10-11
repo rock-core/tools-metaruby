@@ -69,17 +69,14 @@ module MetaRuby
         #   assigned on a Ruby constant
         #
         # @return [Module] a subclass of self
-        def new_submodel(options = Hash.new, &block)
-            options, submodel_options = Kernel.filter_options options,
-                :name => nil
-
+        def new_submodel(name: nil, **submodel_options, &block)
             Thread.current[FROM_NEW_SUBMODEL_TLS] = true
             model = self.class.new(self)
             model.permanent_model = false
-            if options[:name]
-                model.name = options[:name]
+            if name
+                model.name = name
             end
-            setup_submodel(model, submodel_options, &block)
+            setup_submodel(model, **submodel_options, &block)
             model
         end
 
@@ -89,8 +86,10 @@ module MetaRuby
         end
 
         # Called at the end of the definition of a new submodel
-        def setup_submodel(submodel, options = Hash.new, &block)
-            register_submodel(submodel)
+        def setup_submodel(submodel, register: true, **options, &block)
+            if register
+                register_submodel(submodel)
+            end
 
             if block_given?
                 submodel.apply_block(&block)
