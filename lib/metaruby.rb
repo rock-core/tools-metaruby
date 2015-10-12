@@ -1,4 +1,5 @@
 require 'utilrb/object/attribute'
+require 'weakref'
 
 require 'metaruby/inherited_attribute'
 require 'metaruby/registration'

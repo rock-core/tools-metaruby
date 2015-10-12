@@ -21,8 +21,8 @@ module MetaRuby
         # @return [Boolean]
         attr_predicate :permanent_model?, true
 
-        # @return [Set] the set of models that are children of this one
-        attribute(:submodels) { Set.new }
+        # @return [Array] the set of models that are children of this one
+        attribute(:submodels) { Array.new }
 
         # Returns the model that is parent of this one
         #
@@ -32,6 +32,10 @@ module MetaRuby
             if superclass.respond_to?(:register_submodel)
                 superclass
             end
+        end
+
+        def has_submodel?(model)
+            each_submodel.any? { |m| m == model }
         end
 
         # @return [Boolean] true if the definition context (module, class) in
@@ -75,7 +79,7 @@ module MetaRuby
                 klass.definition_location = call_stack
             end
 
-            submodels << klass
+            submodels << WeakRef.new(klass)
             if m = supermodel
                 m.register_submodel(klass)
             end
@@ -84,8 +88,13 @@ module MetaRuby
         # Enumerates all models that are submodels of this class
         def each_submodel
             return enum_for(:each_submodel) if !block_given?
-            submodels.each do |obj|
-                yield(obj)
+            submodels.delete_if do |obj|
+                begin
+                    yield(obj.__getobj__)
+                    false
+                rescue WeakRef::RefError
+                    true
+                end
             end
         end
 
@@ -112,7 +121,7 @@ module MetaRuby
 
         # Clears all registered submodels
         def clear_submodels
-            children = self.submodels.find_all { |m| !m.permanent_model? }
+            children = each_submodel.find_all { |m| !m.permanent_model? }
             if !children.empty?
                 deregister_submodels(children)
             end
@@ -130,7 +139,7 @@ module MetaRuby
             # We can call #clear_submodels while iterating here as it is a
             # constraint that all models in #submodels are permanent (and
             # will therefore not be removed)
-            submodels.each { |m| m.clear_submodels }
+            each_submodel { |m| m.clear_submodels }
             # And this the non-permanent ones
             children.each { |m| m.clear_submodels }
             true
@@ -143,12 +152,22 @@ module MetaRuby
         #
         # @param [Set] set the set of submodels to remove
         def deregister_submodels(set)
-            current_size = submodels.size
-            submodels.subtract(set)
+            has_match = false
+            submodels.delete_if do |m|
+                begin
+                    m = m.__getobj__
+                    if set.include?(m)
+                        has_match = true
+                    end
+                rescue WeakRef::RefError
+                    true
+                end
+            end
+
             if m = supermodel
                 m.deregister_submodels(set)
             end
-            current_size != submodels.size
+            has_match
         end
     end
 end
