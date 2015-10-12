@@ -3,6 +3,7 @@ require 'facets/module/basename'
 require 'facets/kernel/call_stack'
 require 'utilrb/object/attribute'
 require 'utilrb/module/attr_predicate'
+
 module MetaRuby
     # Handling of registration of model hierarchies
     #
@@ -21,7 +22,9 @@ module MetaRuby
         # @return [Boolean]
         attr_predicate :permanent_model?, true
 
-        # @return [Array] the set of models that are children of this one
+        # @api private
+        #
+        # @return [Array<WeakRef>] the set of models that are children of this one
         attribute(:submodels) { Array.new }
 
         # Returns the model that is parent of this one
@@ -34,6 +37,7 @@ module MetaRuby
             end
         end
 
+        # Returns whether a model is a submodel of self
         def has_submodel?(model)
             each_submodel.any? { |m| m == model }
         end
@@ -98,6 +102,13 @@ module MetaRuby
             end
         end
 
+        # Clears this model
+        #
+        # It deregisters sef if it is not a {#permanent_model?}, and clears the
+        # submodels
+        #
+        # Model classes and modules should also clear their respective
+        # attributes (if there are any)
         def clear_model
             if !permanent_model?
                 if m = supermodel
@@ -119,7 +130,7 @@ module MetaRuby
             constant("::#{obj.spacename}").send(:remove_const, obj.basename)
         end
 
-        # Clears all registered submodels
+        # Recursively deregisters all non-permanent submodels
         def clear_submodels
             children = each_submodel.find_all { |m| !m.permanent_model? }
             if !children.empty?
@@ -145,6 +156,8 @@ module MetaRuby
             true
         end
 
+        # @api private
+        #
         # Deregisters a set of submodels on this model and all its
         # supermodels
         #
