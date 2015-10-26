@@ -9,6 +9,7 @@ require './test/test_module'
 require './test/test_attributes'
 require './test/test_registration'
 require './test/test_dsls'
+require './test/gui/test_exception_rendering'
 
 # Put the root logger to DEBUG so that all debug blocks are executed
 MetaRuby.logger = Logger.new(File.open("/dev/null", 'w'))

@@ -81,19 +81,43 @@ module MetaRuby
                 SCRIPTS
             end
 
+            # Parse a backtrace into its file, line and method consistuents
+            #
+            # @return [Array<(String,Integer,String)>]
+            def self.parse_backtrace(backtrace)
+                BacktraceParser.new(backtrace).parse
+            end
+
+            # Shim class that parses a backtrace into its constituents
+            #
+            # This is an internal class, that should not be used directly. Use
+            # {ExceptionRendering.parse_backtrace} instead.
+            #
+            # It provides the methods required for facet's #call_stack method to
+            # work, thus allowing to use it to parse an arbitrary backtrace
             class BacktraceParser
+                # Create a parser for the given backtrace
                 def initialize(backtrace)
                     @backtrace = backtrace || []
                 end
 
+                # Parse the backtrace into file, line and method
+                #
+                # @return [Array<(String,Integer,String)>]
                 def parse
                     call_stack(0)
                 end
 
+                # Returns the backtrace
+                #
+                # This is required by facet's #call_stack
                 def pp_callstack(level)
                     @backtrace[level..-1]
                 end
 
+                # Returns the backtrace
+                #
+                # This is required by facet's #call_stack
                 def pp_call_stack(level)
                     @backtrace[level..-1]
                 end
@@ -191,6 +215,23 @@ module MetaRuby
 
             # @api private
             #
+            # Parses the exception backtrace, and generate a parsed raw and
+            # parsed filtered version of it
+            #
+            # @return [(Array<(String,Integer,String)>,Array<(String,Integer,String))>
+            #   the full and filtered backtraces, as list of tuples
+            #   (file,line,method)
+            def parse_and_filter_backtrace(backtrace)
+                full_backtrace = ExceptionRendering.parse_backtrace(backtrace)
+                filtered_backtrace = filter_backtrace(full_backtrace, backtrace)
+                if filtered_backtrace.first.respond_to?(:to_str)
+                    filtered_backtrace = ExceptionRendering.parse_backtrace(filtered_backtrace)
+                end
+                return full_backtrace, filtered_backtrace
+            end
+
+            # @api private
+            #
             # Render a single exception object into a HTML block
             #
             # @param [Exception] e the exception
@@ -200,13 +241,10 @@ module MetaRuby
                 message = PP.pp(e, "").split("\n").
                     map { |line| HTML.escape_html(line) }
 
-                if e.backtrace && !e.backtrace.empty?
-                    full_backtrace     = BacktraceParser.new(e.backtrace).parse
-                    filtered_backtrace = filter_backtrace(full_backtrace, e.backtrace)
-                    if filtered_backtrace.first.respond_to?(:to_str)
-                        filtered_backtrace = BacktraceParser.new(filtered_backtrace).parse
-                    end
+                full_backtrace, filtered_backtrace =
+                    parse_and_filter_backtrace(e.backtrace)
 
+                if !full_backtrace.empty?
                     origin_file, origin_line, origin_method =
                         filtered_backtrace.find { |file, _| user_file?(file) } ||
                         filtered_backtrace.first ||
