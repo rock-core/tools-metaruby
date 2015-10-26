@@ -4,6 +4,9 @@ require 'metaruby/gui/exception_rendering'
 module MetaRuby
     module GUI
         # Widget that allows to display a list of exceptions
+        #
+        # @deprecated use {HTML::Page} and {HTML::Page#push_exception} directly
+        # instead
         class ExceptionView < Qt::WebView
             attr_reader :displayed_exceptions
 

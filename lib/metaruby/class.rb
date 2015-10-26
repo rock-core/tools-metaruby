@@ -28,6 +28,8 @@ module MetaRuby
         # @return [String] set or get the documentation text for this model
         inherited_single_value_attribute :doc
 
+        # @!attribute [rw] name
+        #
         # Sets a name on this model
         #
         # Only use this on 'anonymous models', i.e. on models that are not
@@ -35,6 +37,9 @@ module MetaRuby
         #
         # @return [String] the assigned name
         def name=(name)
+            # This is dynamically defined. The reason is that there is no way to
+            # call 'super' to get the default Class#name, so we define our name
+            # only when it is explicitely assigned
             def self.name
                 if @name then @name
                 else super

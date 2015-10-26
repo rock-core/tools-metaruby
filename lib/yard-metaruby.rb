@@ -1,14 +1,21 @@
 require 'pp'
 module MetaRuby
+    # Yard plugin to handle some of the metaruby DSL methods
+    #
+    # This is used by adding
+    #
+    #   --plugin metaruby
+    #
+    # to the .yardopts file
     module YARD
         include ::YARD
+
+        # Handling of {Attributes#inherited_attribute}
         class InheritedAttributeHandler < YARD::Handlers::Ruby::AttributeHandler
             handles method_call(:inherited_attribute)
             namespace_only
 
-            def self.process(handler, name, attr_name, is_map, key_name = nil, return_type = nil)
-            end
-
+            # Callback handled by YARD
             def process
                 name = statement.parameters[0].jump(:tstring_content, :ident).source
                 if statement.parameters.size == 4

@@ -4,7 +4,14 @@ module MetaRuby
         #
         # On top of properly formatting the exception, it introduces backtrace
         # filtering and javascript-based buttons to enable backtraces on or off.
+        #
+        # It is usually not used directly, but through {HTML::Page}
+        #
+        # @see HTML::Page#enable_exception_rendering
+        # @see HTML::Page#push_exception
         class ExceptionRendering
+            # The directory relative to which ressources (such as css or javascript
+            # files) are resolved by default
             RESSOURCES_DIR = File.expand_path('html', File.dirname(__FILE__))
 
             # @return [#link_to] an object that allows to render a link to an
@@ -23,16 +30,21 @@ module MetaRuby
                 @user_file_filter = filter || Hash.new(true)
             end
 
+            # Create an exception rendering object using the given linker object
+            #
+            # @param [#link_to] linker
             def initialize(linker)
                 @linker = linker
                 self.user_file_filter = nil
             end
 
+            # Necessary header content
             HEADER = <<-EOD
             <link rel="stylesheet" href="file://#{File.join(RESSOURCES_DIR, 'exception_view.css')}" type="text/css" />
             <script type="text/javascript" src="file://#{File.join(RESSOURCES_DIR, 'jquery.min.js')}"></script>
             EOD
 
+            # The scripts that are used by the other exception templates
             SCRIPTS = <<-EOD
             <script type="text/javascript">
             $(document).ready(function () {
@@ -54,11 +66,17 @@ module MetaRuby
             EOD
 
             # Contents necessary in the <head> ... </head> section
+            #
+            # It is used when enabling the renderer on a [Page] by calling
+            # {HTML::Page#add_to_setup}
             def head
                 HEADER
             end
 
             # Scripts block to be added to the HTML document
+            #
+            # It is used when enabling the renderer on a [Page] by calling
+            # {HTML::Page#add_to_setup}
             def scripts
                 SCRIPTS
             end
@@ -81,10 +99,12 @@ module MetaRuby
                 end
             end
 
+            # Template used to render an exception that does not have backtrace
             EXCEPTION_TEMPLATE_WITHOUT_BACKTRACE = <<-EOF
             <div class="message" id="<%= id %>"><pre><%= message.join("\n") %></pre></div>
             EOF
 
+            # Template used to render an exception that does have a backtrace
             EXCEPTION_TEMPLATE_WITH_BACKTRACE = <<-EOF
             <div class="message" id="<%= id %>">
                 <pre><%= message.join("\n") %></pre>
@@ -107,7 +127,8 @@ module MetaRuby
             # Filters the backtrace to remove framework parts that are not
             # relevant
             #
-            # @param [Array<(String,Integer,Symbol)>] the parsed backtrace
+            # @param [Array<(String,Integer,Symbol)>] parsed_backtrace the parsed backtrace
+            # @param [Array<(String,Integer,Symbol)>] raw_backtrace the raw backtrace
             def filter_backtrace(parsed_backtrace, raw_backtrace)
                 head = parsed_backtrace.take_while { |file, _| !user_file?(file) }
                 tail = parsed_backtrace[head.size..-1].find_all { |file, _| user_file?(file) }
@@ -118,16 +139,30 @@ module MetaRuby
             #
             # An object used to determine this can be set with
             # {#user_file_filter=}
+            #
+            # This is used by {#render_backtrace} to choose the style of a
+            # backtrace line
             def user_file?(file)
                 user_file_filter[file]
             end
 
             @@exception_id = 0
 
+            # Automatically generate an exception ID
             def allocate_exception_id
                 @@exception_id += 1
             end
 
+            # Render an exception into HTML
+            #
+            # @param [Exception] e the exception to be rendered
+            # @param [String] reason additional string that describes the
+            #   exception reason
+            # @param [String] id the ID that should be used to identify the
+            #   exception. Since a given exception can "contain" more than one
+            #   (see {#each_exception_from}), a -#counter pattern is added to
+            #   the ID.
+            # @return [String]
             def render(e, reason = nil, id = allocate_exception_id)
                 counter = 0
                 html = []
@@ -141,11 +176,26 @@ module MetaRuby
                 html.join("\n")
             end
 
+            # Method used by {#render} to discover all exception objects that
+            # are linked to another exception, in cases where exceptions cause
+            # one another
+            #
+            # The default implementation only yields 'e', reimplement in
+            # subclasses
+            #
+            # @yieldparam [Exception] exception an exception
             def each_exception_from(e)
                 return enum_for(__method__) if !block_given?
                 yield(e)
             end
 
+            # @api private
+            #
+            # Render a single exception object into a HTML block
+            #
+            # @param [Exception] e the exception
+            # @param [String] id the block ID
+            # @return [String]
             def render_single_exception(e, id)
                 message = PP.pp(e, "").split("\n").
                     map { |line| HTML.escape_html(line) }
@@ -169,6 +219,12 @@ module MetaRuby
                 end
             end
 
+            # @api private
+            #
+            # Render a backtrace
+            #
+            # It uses {#linker} to generate links, and {#user_file?} to change
+            # the style of the backtrace line.
             def render_backtrace(backtrace)
                 result = []
                 backtrace.each do |file, line, method|

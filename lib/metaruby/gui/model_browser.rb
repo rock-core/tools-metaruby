@@ -54,9 +54,12 @@ module MetaRuby
             #   the model view
             attr_reader :central_splitter
 
-            # A Page object with a #link_to method that is suitable for the
-            # model browser
+            # A Page object tunes to create URIs for objects that are suitable
+            # for {#model_selector}
             class Page < HTML::Page
+                # Overloaded from {HTML::Page} to resolve object paths (in the
+                #   constant hierarchy, e.g. A::B::C) into the corresponding
+                #   path expected by {#model_selector} (e.g. /A/B/C)
                 def uri_for(object)
                     if object.respond_to?(:name) && (obj_name = object.name) && (obj_name =~ /^[\w:]+$/)
                         path = obj_name.split("::")
@@ -65,7 +68,6 @@ module MetaRuby
                     end
                 end
             end
-
 
             def initialize(main = nil, exception_view: nil)
                 super(main)
@@ -95,6 +97,10 @@ module MetaRuby
                 update_exceptions
             end
 
+            # Restore the state of this widget from settings previously saved
+            # with {#save_to_settings}
+            #
+            # @param [Qt::Settings] settings
             def restore_from_settings(settings)
                 %w{central_splitter vertical_splitter}.each do |object_name|
                     sizes = settings.value(object_name)
@@ -107,6 +113,9 @@ module MetaRuby
                 end
             end
 
+            # Save the current state of this widget in the given settings
+            #
+            # @param [Qt::Settings] settings
             def save_to_settings(settings)
                 %w{central_splitter vertical_splitter}.each do |object_name|
                     sizes = send(object_name).sizes
@@ -115,7 +124,7 @@ module MetaRuby
                 end
             end
 
-            # Update the model selector after {register_type} got called
+            # Update the model selector after {#register_type} got called
             def update_model_selector
                 model_selector.update
             end
@@ -126,7 +135,7 @@ module MetaRuby
             # It registers the given type on the model browser so that it gets
             # displayed there.
             #
-            # You must call {update_model_selector} after this call for the
+            # You must call {#update_model_selector} after this call for the
             # modification to have any effect (i.e. for the newly registered
             # models to appear on the selector)
             #
@@ -204,7 +213,7 @@ module MetaRuby
             # Call to render the given model
             #
             # @param [Model] mod the model that should be rendered
-            # @raises [ArgumentError] if there is no view available for the
+            # @raise [ArgumentError] if there is no view available for the
             #   given model
             def render_model(mod, options = Hash.new)
                 page.clear

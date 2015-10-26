@@ -34,30 +34,24 @@ end
 module MetaRuby
     # This module is the common setup for all tests
     #
-    # It should be included in the toplevel describe blocks
+    # It is included in all the minitest tests
     #
     # @example
     #   require 'metaruby/test'
     #   describe MetaRuby do
-    #     include MetaRuby::SelfTest
+    #       # Use helpers methods from SelfTest here
     #   end
     #
     module SelfTest
+        # Common setup code for all metaruby tests
         def setup
-            # Setup code for all the tests
         end
 
+        # Common teardown code for all metaruby tests
         def teardown
         end
     end
 end
 
-module Minitest
-    class Spec
-        include MetaRuby::SelfTest
-    end
-    class Test
-        include MetaRuby::SelfTest
-    end
-end
+Minitest::Test.include MetaRuby::SelfTest
 

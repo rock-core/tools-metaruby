@@ -24,9 +24,18 @@ module MetaRuby
         include Registration
         extend Attributes
 
-        # @return [String] set or get the documentation text for this model
+        # @!method doc
+        #   @overload doc
+        #     @return [String] the documentation text for this model
+        #   @overload doc(new_doc)
+        #     @param [String] new_doc the new documentation
+        #     @return [String] the documentation text for this model
         inherited_single_value_attribute :doc
 
+        # Validate that a string can be used as a constant name
+        #
+        # @param [String] name the name to validate
+        # @raise [ArgumentError] if the name cannot be used as a constant name
         def self.validate_constant_name(name)
             if name !~ /^[A-Z]\w+$/
                 raise ArgumentError, "#{name} is not a valid model name"
@@ -38,6 +47,16 @@ module MetaRuby
         #
         # It is usually used to create specific DSL-like methods that allow to
         # create these models
+        #
+        # @param [Module,Class] namespace
+        # @param [String] name the model name, it must be valid for a Ruby
+        #   constant name
+        # @param [Module] base_model the base model, which should include
+        #   {ModelAsModule} itself
+        # @param [Array] args additional arguments to pass to base_model's
+        #   #setup_submodel
+        # @param [#call] block block passed to base_model's #setup_submodel
+        # @return [Module] the new model
         def self.create_and_register_submodel(namespace, name, base_model, *args, &block)
             ModelAsModule.validate_constant_name(name)
 
@@ -68,6 +87,8 @@ module MetaRuby
         # True if this model is a root model
         attr_predicate :root?, true
 
+        # @!attribute [rw] name
+        #
         # Sets a name on this model
         #
         # Only use this on 'anonymous models', i.e. on models that are not
@@ -83,7 +104,7 @@ module MetaRuby
             @name = name
         end
 
-        # Set the root model. See {root_model}
+        # Set or get the root model
         attr_accessor :supermodel
 
         # Creates a new DataServiceModel that is a submodel of +self+

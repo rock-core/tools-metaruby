@@ -1,8 +1,44 @@
 require 'set'
 require 'utilrb/module/dsl_attribute'
 module MetaRuby
+    # Basic functionality for attributes that are aware of inheritance
+    #
+    # There's basically two main interfaces: {.inherited_single_value_attribute}
+    # and {.inherited_attribute}.
+    #
+    # The former will return the value as set at the lowest level in the
+    # model hierarchy (i.e. on self, then on supermodel if self is unset and so
+    # forth).
+    #
+    # The latter enumerates a collection (e.g. Array, Set or Hash). If a map
+    # is used (such as a Hash), additional functionality gives different choices
+    # as to how the key-value mapping is handled w.r.t. model hierarchy.
+    #
+    # In both cases, a value returned by a submodel is optionally passed through
+    # a promotion method (called #promote_#attributename) which allows to update
+    # the returned value (as e.g. update a possible back-reference of the
+    # enumerated value to its containing model from the original model to the
+    # receiver).
+    #
+    # @example promotion to update back references
+    #   class Port; attr_accessor :component_model end
+    #   class Component
+    #       inherited_attribute(:ports, :port, map: true) { Hash.new }
+    #
+    #       # Update #component_model to make it point to the receiver instead
+    #       # of the original model. Note that metaruby does not memoize the
+    #       # result, so it has to be done in the promote method if it is
+    #       # desired
+    #       def promote_port(port)
+    #           port = port.dup
+    #           port.component_model = self
+    #           port
+    #       end
+    #   end
     module Attributes
-        InheritedAttribute = Struct.new :single_value, :name, :accessor_name, :init
+        # Internal representation of inherited attributes
+        class InheritedAttribute < Struct.new(:single_value, :name, :accessor_name, :init)
+        end
 
         # The set of inherited attributes defined on this object
         # @return [Array<InheritedAttribute>]
@@ -35,6 +71,9 @@ module MetaRuby
 
         # Defines an attribute that holds at most a single value
         #
+        # The value returned by the defined accessor will be the one set at the
+        # lowest level in the model hierarchy (i.e. self, then superclass, ...)
+        #
         # @param [String] name the attribute name
         # @return [InheritedAttribute] the attribute definition
         # @raise [ArgumentError] if no attribute with that name exists
@@ -62,6 +101,8 @@ module MetaRuby
             nil
         end
 
+        # @api private
+        #
         # Helper method for {#inherited_single_value_attribute} in case there
         # are no promotion method(s) defined
         def define_single_value_without_promotion(method_name, ivar)
@@ -99,6 +140,8 @@ module MetaRuby
             EOF
         end
 
+        # @api private
+        #
         # Helper method for {#inherited_single_value_attribute} in case there is
         # a promotion method defined
         def define_single_value_with_promotion(method_name, promotion_method_name, ivar)
@@ -146,14 +189,14 @@ module MetaRuby
         # relevant methods and accessors to allow accessing it in a way that
         # makes sense when embedded in a model hierarchy
         #
-        # More specifically, it defines a <tt>each_#{name}(&iterator)</tt>
-        # instance method and a <tt>each_#{name}(&iterator)</tt>
+        # More specifically, it defines a <tt>each_#name(&iterator)</tt>
+        # instance method and a <tt>each_#name(&iterator)</tt>
         # class method which iterates (in order) on 
-        # - the instance #{name} attribute
-        # - the singleton class #{name} attribute
-        # - the class #{name} attribute
-        # - the superclass #{name} attribute
-        # - the superclass' superclass #{name} attribute
+        # - the instance #name attribute
+        # - the singleton class #name attribute
+        # - the class #name attribute
+        # - the superclass #name attribute
+        # - the superclass' superclass #name attribute
         # ...
         #
         # This method can be used on modules, in which case the module is used as if 
@@ -314,6 +357,8 @@ module MetaRuby
             end
         end
 
+        # @api private
+        #
         # Helper class that defines the iteration method for inherited_attribute
         # when :map is set and there is not promotion method
         def self.map_without_promotion(name, attribute_name, options)
@@ -364,6 +409,8 @@ module MetaRuby
             return code, file, line
         end
 
+        # @api private
+        #
         # Helper class that defines the iteration method for inherited_attribute
         # when :map is not set and there is no promotion method
         def self.nomap_without_promotion(name, attribute_name, options)
@@ -388,6 +435,8 @@ module MetaRuby
             return code, file, line
         end
 
+        # @api private
+        #
         # Helper class that defines the iteration method for inherited_attribute
         # when :map is set and there is a promotion method
         def self.map_with_promotion(name, attribute_name, options)
@@ -453,6 +502,8 @@ module MetaRuby
             return code, file, line
         end
 
+        # @api private
+        #
         # Helper class that defines the iteration method for inherited_attribute
         # when :map is not set and there is a promotion method
         def self.nomap_with_promotion(name, attribute_name, options)

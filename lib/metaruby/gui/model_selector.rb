@@ -1,20 +1,42 @@
 module MetaRuby
     module GUI
-        # A Qt widget that allows to browse the models registered in the Ruby
-        # constanat hierarchy
+        # A Qt widget based on {RubyConstantsItemModel} to browse a set of
+        # models, and display them when the user selects one
         class ModelSelector < Qt::Widget
-            attr_reader :btn_type_filter_menu
+            # A per-type matching of the type to the actio that allows to
+            # filter/unfilter on this type
+            #
+            # @return [Hash<Module,Qt::Action>]
             attr_reader :type_filters
+
+            # The view that shows the object hierarchy
+            #
+            # @return [Qt::TreeView]
             attr_reader :model_list
+
+            # Qt model filter
+            # @return [Qt::SortFilterProxyModel]
             attr_reader :model_filter
+
+            # (see {RubyConstantsItemModel#type_info)
+            attr_reader :type_info
+
+            # The Qt item model that represents the object hierarchy
+            # @return [RubyConstantsItemModel]
+            attr_reader :browser_model
+
+            # @return [Qt::PushButton] a button allowing to filter models by
+            #   type
+            attr_reader :btn_type_filter_menu
             # @return [Qt::LineEdit] the line edit widget that allows to modify
             #   the tree view filter
             attr_reader :filter_box
-            # @return [Qt::Completer] auto-completion for {filter_box}
+            # @return [Qt::Completer] auto-completion for {#filter_box}
             attr_reader :filter_completer
-            attr_reader :type_info
-            attr_reader :browser_model
 
+            # Create a new widget with an optional parent
+            #
+            # @param [Qt::Widget,nil] parent
             def initialize(parent = nil)
                 super
 
@@ -35,6 +57,14 @@ module MetaRuby
                 setTabOrder(filter_button, model_list)
             end
 
+            # Register a new object type
+            #
+            # @param [Module] model_base a module or class whose all objects of
+            #   this type have as superclass
+            # @param [String] name the string that should be used to represent
+            #   objects of this type
+            # @param [Integer] priority if an object's ancestry matches multiple
+            #   types, only the ones of the highest priority will be retained
             def register_type(model_base, name, priority = 0)
                 type_info[model_base] = RubyConstantsItemModel::TypeInfo.new(name, priority)
                 action = Qt::Action.new(name, self)
@@ -47,11 +77,15 @@ module MetaRuby
                 end
             end
 
+            # Update the view, reloading the underlying model
             def update
                 update_model_filter
                 reload
             end
 
+            # @api private
+            #
+            # Update {#model_filter} to match the current filter setup
             def update_model_filter
                 type_rx = type_filters.map do |model_base, act|
                     if act.checked?
@@ -74,6 +108,10 @@ module MetaRuby
                 auto_open
             end
 
+            # Auto-open in the current state
+            #
+            # @param [Integer] threshold the method opens items whose number of
+            #   children is lower than this threshold
             def auto_open(threshold = 5)
                 current_level = [Qt::ModelIndex.new]
                 while !current_level.empty?
@@ -97,6 +135,7 @@ module MetaRuby
                 end
             end
 
+            # Tests if an object if a model
             def model?(obj)
                 type_info.any? do |model_base, _|
                     obj.kind_of?(model_base) ||
@@ -113,6 +152,9 @@ module MetaRuby
                 end
             end
 
+            # @api private
+            #
+            # Helper method for {#select_first_item}
             def all_leaves(model, limit = nil, item = Qt::ModelIndex.new, result = [])
                 if !model.hasChildren(item)
                     result << item
@@ -131,12 +173,16 @@ module MetaRuby
                 return result
             end
 
+            # Select the first displayed item
             def select_first_item
                 if item = all_leaves(model_filter, 1).first
                     model_list.setCurrentIndex(item)
                 end
             end
 
+            # @api private
+            #
+            # Create and setup {#model_list}
             def setup_tree_view(layout)
                 @model_list = Qt::TreeView.new(self)
                 @model_filter = Qt::SortFilterProxyModel.new
@@ -169,6 +215,7 @@ module MetaRuby
             end
             signals 'model_selected(QVariant)'
 
+            # Reload the object model, keeping the current selection if possible
             def reload
                 if current = current_selection
                     current_module = current.this
@@ -202,10 +249,10 @@ module MetaRuby
             # control whether the filter should be reset if the index given as
             # parameter is currently filtered out
             #
-            # @param [Qt::ModelIndex] an index valid in {browser_model}
-            # @option options [Boolean] :reset_filter (true) if true, the filter
+            # @param [Qt::ModelIndex] source_index an index valid in {#browser_model}
+            # @param [Boolean] reset_filter if true, the filter
             #   is reset if the requested index is currently filtered out
-            # @return [Qt::ModelIndex] an index filtered by {model_filter}
+            # @return [Qt::ModelIndex] an index filtered by {#model_filter}
             def map_index_from_source(source_index, reset_filter: true)
                 index = model_filter.map_from_source(source_index)
                 if !index

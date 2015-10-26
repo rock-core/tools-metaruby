@@ -6,7 +6,9 @@
     <script type="text/javascript" src="<%= prefix %><%= File.join(ressource_dir, 'jquery.min.js') %>"></script>
     <script type="text/javascript" src="<%= prefix %><%= File.join(ressource_dir, 'jquery.selectfilter.js') %>"></script>
     <%= head.join("\n").gsub('${RESOURCE_DIR}', "#{prefix}#{ressource_dir}") %>
+<% if page_name %>
     <title><%= page_name %></title>
+<% end %>
 </head>
 <%= scripts.join("\n").gsub('${RESOURCE_DIR}', "#{prefix}#{ressource_dir}") %>
 <body>

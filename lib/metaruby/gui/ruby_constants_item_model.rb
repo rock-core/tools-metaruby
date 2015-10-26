@@ -1,21 +1,69 @@
 module MetaRuby
     module GUI
-        # A Qt item model that lists Ruby modules that match a given predicate
-        # (given at construction time)
+        # A Qt item model that enumerates models stored in the Ruby constant
+        # hierarchy
+        #
+        # The model exposes all registered constants for which {#predicate}
+        # returns true in a hierarchy, allowing the user to interact with it.
+        #
+        # Discovery starts at Object
         class RubyConstantsItemModel < Qt::AbstractItemModel
+            # Stored per-module information test
             ModuleInfo = Struct.new :id, :name, :this, :parent, :children, :row, :types, :full_name, :keyword_string, :path
+
+            # Information about different model types
             TypeInfo   = Struct.new :name, :priority, :color
 
+            # Predicate that filters objects in addition to {#excludes}
+            #
+            # Only objects for which #call returns true and the constants that
+            # contain them are exposed by this model
+            #
+            # @return [#call]
             attr_reader :predicate
-            attr_reader :id_to_module
-            attr_reader :filtered_out_modules
-            attr_reader :type_info
-            attr_accessor :title
-            attr_reader :object_paths
-            # @return [Set<Object>] a set of objects that should not be
-            #   discovered
+
+            # Explicitely excluded objects
+            #
+            # Set of objects that should be excluded from discovery, regardless
+            # of what {#predicate} would return from them.
+            #
+            # Note that such objects are not discovered at all, meaning that if
+            # they contain objects that should have been discovered, they won't
+            # be.
+            # 
+            # @return [Set]
             attr_reader :excludes
 
+            # A list of expected object types
+            #
+            # This is used to decide where a given object should be "attached"
+            # in the hierarchy. Matching types are stored in {ModuleInfo#types}.
+            #
+            # @return [{Class=>TypeInfo}]
+            attr_reader :type_info
+
+            # Mapping from module ID to a module object
+            #
+            # @return [{Integer=>ModuleInfo}]
+            attr_reader :id_to_module
+
+            # Set of objects that have been filtered out by {#predicate}
+            attr_reader :filtered_out_modules
+
+            # Name of the root item
+            #
+            # @return [String]
+            attr_accessor :title
+
+            # List of paths for each of the discovered objects
+            #
+            # @return [{Object=>String}]
+            attr_reader :object_paths
+
+            # Initialize this model for objects of the given type
+            #
+            # @param [Hash] type_info value for {#type_info}
+            # @param [#call] predicate the filter {#predicate}
             def initialize(type_info = Hash.new, &predicate)
                 super()
                 @predicate = predicate || proc { true }
@@ -28,6 +76,7 @@ module MetaRuby
                 @object_paths = Hash.new
             end
 
+            # Discovers or rediscovers the objects
             def reload
                 begin_reset_model
                 @id_to_module = []
@@ -46,10 +95,19 @@ module MetaRuby
                 end_reset_model
             end
 
+            # {ModuleInfo} for the root
             def root_info
                 id_to_module.last
             end
 
+            # @api private
+            #
+            # Generate the path information, i.e. per-object path string
+            #
+            # @param [Hash] paths the generated paths (matches {#object_paths})
+            # @param [ModuleInfo] info the object information for the object to
+            #   be discovered
+            # @param [String] current the path of 'info'
             def generate_paths(paths, info, current)
                 info.children.each do |child|
                     child_uri = current + '/' + child.name
@@ -58,6 +116,12 @@ module MetaRuby
                 end
             end
 
+            # @api private
+            #
+            # Updates {ModuleInfo#types} so that it includes the type of its
+            #   children
+            #
+            # @param [ModuleInfo] info the object info that should be updated
             def update_module_type_info(info)
                 types = info.types.to_set
                 info.children.each do |child_info|
@@ -68,6 +132,13 @@ module MetaRuby
                 end.reverse
             end
 
+            # @api private
+            #
+            # Discovers an object and its children
+            #
+            # @param [Object] mod an object that should be discovered
+            # @param [Array] stack the current stack (to avoid infinite recursions)
+            # @return [ModuleInfo]
             def discover_module(mod, stack = Array.new)
                 return if excludes.include?(mod)
                 stack.push mod
@@ -143,13 +214,13 @@ module MetaRuby
             ensure stack.pop
             end
 
-            def headerData(section, orientation, role)
-                if role == Qt::DisplayRole && section == 0
-                    Qt::Variant.new(title)
-                else Qt::Variant.new
-                end
-            end
-
+            # @api private
+            #
+            # Lazily computes the full name of a discovered object. It updates
+            # {ModuleInfo#full_name}
+            #
+            # @param [ModuleInfo] info
+            # @return [String]
             def compute_full_name(info)
                 if name = info.full_name
                     return name
@@ -164,6 +235,13 @@ module MetaRuby
                 end
             end
 
+            # @api private
+            #
+            # Lazily compute the path of a discovered object. The result is
+            # stored in {ModuleInfo#path}
+            #
+            # @param [ModuleInfo] info
+            # @return [String]
             def compute_path(info)
                 if path = info.path
                     return path
@@ -173,61 +251,8 @@ module MetaRuby
                 end
             end
 
-            def compute_keyword_string(info)
-                if keywords = info.keyword_string
-                    return keywords
-                else
-                    types = info.types.map do |type|
-                        type_info[type].name
-                    end.sort.join(",")
-                    paths = [compute_path(info)]
-                    paths.concat info.children.map { |child| compute_keyword_string(child) }
-                    info.keyword_string = "#{types};#{paths.join(",")}"
-                end
-            end
 
-            def data(index, role)
-                if info = info_from_index(index)
-                    if role == Qt::DisplayRole
-                        return Qt::Variant.new(info.name)
-                    elsif role == Qt::EditRole
-                        return Qt::Variant.new(compute_full_name(info).join("/"))
-                    elsif role == Qt::UserRole
-                        return Qt::Variant.new(compute_keyword_string(info))
-                    end
-                end
-                return Qt::Variant.new
-            end
-
-            def index(row, column, parent)
-                if info = info_from_index(parent)
-                    if child_info = info.children[row]
-                        return create_index(row, column, child_info.id)
-                    end
-                end
-                Qt::ModelIndex.new
-            end
-
-            def parent(child)
-                if info = info_from_index(child)
-                    if info.parent && info.parent != root_info
-                        return create_index(info.parent.row, 0, info.parent.id)
-                    end
-                end
-                Qt::ModelIndex.new
-            end
-
-            def rowCount(parent)
-                if info = info_from_index(parent)
-                    info.children.size
-                else 0
-                end
-            end
-
-            def columnCount(parent)
-                return 1
-            end
-
+            # Resolves a {ModuleInfo} from a Qt::ModelIndex
             def info_from_index(index)
                 if !index.valid?
                     return id_to_module.last
@@ -236,12 +261,21 @@ module MetaRuby
                 end
             end
 
+            # Return the Qt::ModelIndex that represents a given object
+            #
+            # @return [Qt::ModelIndex,nil] the index, or nil if the object is
+            #   not included in this model
             def find_index_by_model(model)
                 if info = id_to_module.find { |info| info.this == model }
                     return create_index(info.row, 0, info.id)
                 end
             end
 
+            # Returns the Qt::ModelIndex that matches a given path
+            #
+            # @param [Array<String>] path path to the desired object
+            # @return [Qt::ModelIndex,nil] the index, or nil if the path does
+            #   not resolve to an object included in this model
             def find_index_by_path(*path)
                 current = id_to_module.last
                 if path.first == current.name
@@ -255,6 +289,85 @@ module MetaRuby
                     return if !current
                 end
                 create_index(current.row, 0, current.id)
+            end
+
+            # @api private
+            #
+            # Lazily compute a comma-separated string that can be used to search
+            # for the given node. The result is stored in
+            # {ModuleInfo#keyword_string}
+            #
+            # The returned string is of the form
+            #     type0[,type1...]:name0[,name1...]
+            #
+            # @param [ModuleInfo] info
+            # @return [String]
+            def compute_keyword_string(info)
+                if keywords = info.keyword_string
+                    return keywords
+                else
+                    types = info.types.map do |type|
+                        type_info[type].name
+                    end.sort.join(",")
+                    paths = [compute_path(info)]
+                    paths.concat info.children.map { |child| compute_keyword_string(child) }
+                    info.keyword_string = "#{types};#{paths.join(",")}"
+                end
+            end
+
+            # Reimplemented for Qt model interface
+            def headerData(section, orientation, role)
+                if role == Qt::DisplayRole && section == 0
+                    Qt::Variant.new(title)
+                else Qt::Variant.new
+                end
+            end
+
+            # Reimplemented for Qt model interface
+            def data(index, role)
+                if info = info_from_index(index)
+                    if role == Qt::DisplayRole
+                        return Qt::Variant.new(info.name)
+                    elsif role == Qt::EditRole
+                        return Qt::Variant.new(compute_full_name(info).join("/"))
+                    elsif role == Qt::UserRole
+                        return Qt::Variant.new(compute_keyword_string(info))
+                    end
+                end
+                return Qt::Variant.new
+            end
+
+            # Reimplemented for Qt model interface
+            def index(row, column, parent)
+                if info = info_from_index(parent)
+                    if child_info = info.children[row]
+                        return create_index(row, column, child_info.id)
+                    end
+                end
+                Qt::ModelIndex.new
+            end
+
+            # Reimplemented for Qt model interface
+            def parent(child)
+                if info = info_from_index(child)
+                    if info.parent && info.parent != root_info
+                        return create_index(info.parent.row, 0, info.parent.id)
+                    end
+                end
+                Qt::ModelIndex.new
+            end
+
+            # Reimplemented for Qt model interface
+            def rowCount(parent)
+                if info = info_from_index(parent)
+                    info.children.size
+                else 0
+                end
+            end
+
+            # Reimplemented for Qt model interface
+            def columnCount(parent)
+                return 1
             end
         end
     end

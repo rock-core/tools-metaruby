@@ -96,7 +96,7 @@ purpose, that we strongly recommend you use:
 ~~~
 class Module
   def color(name, &block)
-    MetaRuby::ModelAsModule.create_ang_register_submodel(self, name, Color, &block)
+    MetaRuby::ModelAsModule.create_and_register_submodel(self, name, Color, &block)
   end
 end
 ~~~
@@ -305,9 +305,9 @@ Car.clear_submodels
 
 This will only clear anonymous models. Models that are created either by
 subclassing a model class or by using
-{MetaRuby::ModelAsModule#create_ang_register_submodel
-create_ang_register_submodel} are marked as
-{MetaRuby::Registration#permanent_model? permanent models} and therefore
+{MetaRuby::ModelAsModule.create_and_register_submodel}
+are marked as
+{MetaRuby::Registration#permanent_model?} and therefore
 protected from removal by #clear_submodel
 
 # Adding options to the submodel creation process
