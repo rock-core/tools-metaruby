@@ -53,5 +53,7 @@ module MetaRuby
     end
 end
 
-Minitest::Test.include MetaRuby::SelfTest
+class Minitest::Test
+    include MetaRuby::SelfTest
+end
 
