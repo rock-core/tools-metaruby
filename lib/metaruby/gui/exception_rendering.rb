@@ -242,7 +242,7 @@ module MetaRuby
                     map { |line| HTML.escape_html(line) }
 
                 full_backtrace, filtered_backtrace =
-                    parse_and_filter_backtrace(e.backtrace)
+                    parse_and_filter_backtrace(e.backtrace || Array.new)
 
                 if !full_backtrace.empty?
                     origin_file, origin_line, origin_method =
