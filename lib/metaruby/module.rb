@@ -158,15 +158,34 @@ module MetaRuby
             class_eval(&block)
         end
 
+        # Tests whether self provides the given model
+        #
+        # @param [Module] model
+        def provides?(model)
+            self <= model
+        end
+
         # Declares that this model also provides this other given model
         def provides(model)
             include model
-            if model.root?
-                self.supermodel = model
-            else
-                self.supermodel = model.supermodel
+
+            model_root =
+                if model.root? then model
+                else model.supermodel
+                end
+
+            if !supermodel
+                self.supermodel = model_root
+                self.supermodel.register_submodel(self)
+            elsif supermodel != model_root
+                if model_root.provides?(supermodel)
+                    self.supermodel = model_root
+                elsif !supermodel.provides?(model_root)
+                    raise ArgumentError, "#{model}'s root is #{model_root} while #{self} is #{supermodel}, which are unrelated"
+                end
+                self.supermodel.register_submodel(self)
             end
-            self.supermodel.register_submodel(self)
+
             self.parent_models.merge(model.parent_models)
             self.parent_models << model
         end

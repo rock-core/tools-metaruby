@@ -23,6 +23,27 @@ describe MetaRuby::ModelAsModule do
             submodel.provides root_m
             assert_equal root, submodel.supermodel
         end
+        it "does not override a supermodel that is more specialized than the provided model's supermodel" do
+            root = Module.new { extend MetaRuby::ModelAsModule }
+            root.root = true
+            root_model = root.new_submodel
+            subroot = root.new_submodel
+            subroot.root = true
+            subroot_model = subroot.new_submodel
+            subroot_model.provides root_model
+            assert_equal subroot, subroot_model.supermodel
+        end
+        it "raises if the two supermodels are unrelated" do
+            root = Module.new { extend MetaRuby::ModelAsModule }
+            root.root = true
+            root_model = root.new_submodel
+            other_root = Module.new { extend MetaRuby::ModelAsModule }
+            other_root.root = true
+            other_root_model = other_root.new_submodel
+            assert_raises(ArgumentError) do
+                other_root_model.provides root_model
+            end
+        end
     end
 
     describe "Using modules as metamodel" do
