@@ -2,17 +2,22 @@ require 'metaruby/test'
 
 class TC_Models < MiniTest::Test
     def test_inherited_attribute_class
+        a_meta = Module.new do
+            extend MetaRuby::Attributes
+            inherited_attribute(:signature, :signatures) { Array.new }
+            inherited_attribute(:mapped, :map, :map => true) { Hash.new }
+        end
 	a = Class.new do
-            class << self
-                extend MetaRuby::Attributes
-                inherited_attribute(:signature, :signatures) { Array.new }
-                inherited_attribute(:mapped, :map, :map => true) { Hash.new }
-            end
+            extend a_meta
 	end
+        b_meta = Module.new do
+            extend MetaRuby::Attributes
+	    inherited_attribute(:child_attribute) { Array.new }
+        end
 	b = Class.new(a) do
 	    include Module.new # include an empty module between a and b to check that the module
 			       # is skipped transparently
-	    singleton_class.inherited_attribute(:child_attribute) { Array.new }
+            extend b_meta
 	end
 	check_inherited_attribute(a, b)
 	
