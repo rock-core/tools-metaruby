@@ -4,8 +4,8 @@ ENV['TEST_ENABLE_COVERAGE'] ||= '1'
 # Require all your test files here. Always prepend ./ and use the relative path
 # to the Ruby library root
 require 'metaruby/test'
-require './test/test_class'
-require './test/test_module'
+require './test/test_model_as_class'
+require './test/test_model_as_module'
 require './test/test_attributes'
 require './test/test_registration'
 require './test/test_dsls'
