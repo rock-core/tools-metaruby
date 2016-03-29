@@ -65,4 +65,60 @@ describe MetaRuby::ModelAsClass do
             assert !NonPermanentDefinitionContext::Klass.permanent_model?
         end
     end
+
+    describe "#name" do
+        attr_reader :klass
+
+        before do
+            @klass = Class.new do
+                extend MetaRuby::ModelAsClass
+            end
+        end
+
+        after do
+            if DefinitionContext.const_defined?(:Test)
+                DefinitionContext.send(:remove_const, :Test)
+            end
+        end
+
+        it "returns the default name for the class" do
+            DefinitionContext.const_set(:Test, klass)
+            assert_equal 'DefinitionContext::Test', DefinitionContext::Test.name
+        end
+
+        it "allows to override the class name" do
+            DefinitionContext.const_set(:Test, klass)
+            DefinitionContext::Test.name = "Test"
+            assert_equal 'Test', DefinitionContext::Test.name
+        end
+
+        it "behaves identically for an anonymous submodel of a parent model" do
+            parent = Class.new { extend MetaRuby::ModelAsClass }
+            parent.name = "Parent"
+            child = parent.new_submodel
+            assert !child.name
+            DefinitionContext.const_set(:Test, child)
+            assert_equal 'DefinitionContext::Test', child.name
+            child.name = "Test"
+            assert_equal "Test", child.name
+        end
+        it "allows setting the name in #new_submodel" do
+            parent = Class.new { extend MetaRuby::ModelAsClass }
+            parent.name = "Parent"
+            child = parent.new_submodel(name: 'Child')
+            assert_equal 'Child', child.name
+        end
+        it "does not set the name if the name argument is not given" do
+            meta = Module.new do
+                include MetaRuby::ModelAsClass
+                def setup_submodel(submodel, **options)
+                    super
+                    submodel.name = 'Test'
+                end
+            end
+            parent = Class.new { extend meta }
+            child = parent.new_submodel
+            assert_equal 'Test', child.name
+        end
+    end
 end
