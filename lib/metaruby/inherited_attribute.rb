@@ -392,10 +392,10 @@ module MetaRuby
                     seen = Set.new
                     for klass in ancestors
                         if klass.instance_variable_defined?(:@#{attribute_name})
-                            klass.#{attribute_name}.#{enum_with} do |key, el| 
-                                if !seen.include?(key)
-                                    seen << key
-                                    #{if yield_key then 'yield(key, el)' else 'yield(el)' end}
+                            klass.#{attribute_name}.#{enum_with} do |el_key, el| 
+                                if !seen.include?(el_key)
+                                    seen << el_key
+                                    #{if yield_key then 'yield(el_key, el)' else 'yield(el)' end}
                                 end
                             end
                         end
