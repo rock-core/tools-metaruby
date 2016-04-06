@@ -194,7 +194,7 @@ module MetaRuby
                 each_exception_from(e) do |exception|
                     if !seen.include?(exception)
                         seen << exception
-                        html << render_single_exception(e, "#{id}-#{counter += 1}")
+                        html << render_single_exception(exception, "#{id}-#{counter += 1}")
                     end
                 end
                 html.join("\n")
