@@ -71,7 +71,7 @@ module MetaRuby::GUI
                 @templates = Hash.new
                 @auto_id = 0
 
-                if page.kind_of?(Qt::WebPage)
+                if defined?(Qt::WebPage) && page.kind_of?(Qt::WebPage)
                     page.link_delegation_policy = Qt::WebPage::DelegateAllLinks
                     Qt::Object.connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('pageLinkClicked(const QUrl&)'))
                 end
