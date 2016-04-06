@@ -1,3 +1,4 @@
+require 'kramdown'
 require 'metaruby/gui/html/button'
 require 'metaruby/gui/html/page'
 require 'metaruby/gui/html/collection'
