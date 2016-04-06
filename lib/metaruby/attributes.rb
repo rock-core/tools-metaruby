@@ -36,35 +36,6 @@ module MetaRuby
     #       end
     #   end
     module Attributes
-        # Internal representation of inherited attributes
-        class InheritedAttribute < Struct.new(:single_value, :name, :accessor_name, :init)
-        end
-
-        # The set of inherited attributes defined on this object
-        # @return [Array<InheritedAttribute>]
-        attribute(:inherited_attributes) { Array.new }
-
-        # Tests for the existence of an inherited attribute by its name
-        #
-        # @param [String] name the attribute name
-        # @return [Boolean] true if there is an attribute defined with the given
-        #   name
-        def inherited_attribute_defined?(name)
-            inherited_attributes.any? { |ih| ih.name == name }
-        end
-
-        # Returns the inherited attribute definition that matches the given name
-        #
-        # @param [String] name the attribute name
-        # @return [InheritedAttribute] the attribute definition
-        # @raise [ArgumentError] if no attribute with that name exists
-        def inherited_attribute_by_name(name)
-            if attr = inherited_attributes.find { |ih| ih.name == name }
-                return attr
-            else raise ArgumentError, "#{self} has no inherited attribute called #{name}"
-            end
-        end
-
         def included(mod)
             mod.extend Attributes
         end
