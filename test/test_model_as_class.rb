@@ -121,4 +121,58 @@ describe MetaRuby::ModelAsClass do
             assert_equal 'Test', child.name
         end
     end
+    
+    describe "#supermodel" do
+        attr_reader :base
+        before do
+            meta = Module.new do
+                include MetaRuby::ModelAsClass
+            end
+            @base = Class.new
+            base.extend meta
+        end
+
+        it "returns nil on a root class" do
+            assert_nil base.supermodel
+        end
+        it "returns the superclass on a child model" do
+            child = base.new_submodel
+            assert_same child, child.new_submodel.supermodel
+        end
+    end
+
+    describe "providing models-as-module" do
+        attr_reader :m, :klass
+        before do
+            @m = Module.new { extend MetaRuby::ModelAsModule }
+            @klass = Class.new
+            klass.extend MetaRuby::ModelAsClass
+        end
+        it "includes the module in #provides" do
+            klass.provides m
+            assert klass.ancestors.include?(m)
+        end
+        it "returns false for just any module in #provides?" do
+            assert !klass.provides?(m)
+        end
+        it "returns true for just a provided module in #provides?" do
+            klass.provides m
+            assert klass.provides?(m)
+        end
+    end
+
+    describe "#has_submodel?" do
+        attr_reader :klass
+        before do
+            @klass = Class.new
+            klass.extend MetaRuby::ModelAsClass
+        end
+
+        it "returns true if the given model is a submodel of self" do
+            assert klass.has_submodel?(klass.new_submodel)
+        end
+        it "returns false if the model is unrelated" do
+            refute klass.new_submodel.has_submodel?(klass.new_submodel)
+        end
+    end
 end

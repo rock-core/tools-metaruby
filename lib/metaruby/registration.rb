@@ -27,16 +27,6 @@ module MetaRuby
         # @return [Array<WeakRef>] the set of models that are children of this one
         attribute(:submodels) { Array.new }
 
-        # Returns the model that is parent of this one
-        #
-        # The default implementation returns superclass if it is extended by
-        # this Registration module, and nil otherwise
-        def supermodel
-            if superclass.respond_to?(:register_submodel)
-                superclass
-            end
-        end
-
         # Returns whether a model is a submodel of self
         def has_submodel?(model)
             each_submodel.any? { |m| m == model }
