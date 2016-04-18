@@ -1,5 +1,3 @@
-require 'utilrb/module/const_defined_here_p'
-
 module MetaRuby
     # Extend in modules that are used as models
     #
@@ -60,7 +58,7 @@ module MetaRuby
         def self.create_and_register_submodel(namespace, name, base_model, *args, &block)
             ModelAsModule.validate_constant_name(name)
 
-            if namespace.const_defined_here?(name)
+            if namespace.const_defined?(name, false)
                 model = namespace.const_get(name)
                 base_model.setup_submodel(model, *args, &block)
             else 
@@ -96,12 +94,18 @@ module MetaRuby
         #
         # @return [String] the assigned name
         def name=(name)
-            def self.name
-                if @name then @name
-                else super
-                end
-            end
             @name = name
+        end
+
+        def name
+            if @name then @name
+            else super
+            end
+        end
+
+        def self.extend_object(obj)
+            obj.instance_variable_set :@name, nil
+            super
         end
 
         # Set or get the root model
@@ -117,9 +121,10 @@ module MetaRuby
         def new_submodel(name: nil, type: self.class, **submodel_options, &block)
             model = type.new
             model.extend ModelAsModule
-            if name
-                model.name = name.dup
-            end
+            model.name =
+                if name
+                    name.dup
+                end
             model.definition_location = call_stack
             setup_submodel(model, submodel_options, &block)
             model

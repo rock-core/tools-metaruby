@@ -156,7 +156,7 @@ module MetaRuby
                                        end
 
                     children_modules = children_modules.map do |child_name|
-                        next if !mod.const_defined_here?(child_name)
+                        next if !mod.const_defined?(child_name, false)
                         # Ruby issues a warning when one tries to access Config
                         # (it has been deprecated in favor of RbConfig). Ignore
                         # it explicitly

@@ -9,6 +9,22 @@ module Mod
     end
 end
 
+module PermanentMetaRubyContext
+    extend MetaRuby::Registration
+    self.permanent_model = true
+    class Constant
+        extend MetaRuby::Registration
+    end
+end
+
+module NonPermanentMetaRubyContext
+    extend MetaRuby::Registration
+    self.permanent_model = false
+    class Constant
+        extend MetaRuby::Registration
+    end
+end
+
 describe MetaRuby::Registration do
     include MetaRuby::SelfTest
 
@@ -24,6 +40,43 @@ describe MetaRuby::Registration do
             parent_model.register_submodel(result)
         end
         result
+    end
+
+    describe "#has_submodel?" do
+        attr_reader :base_model
+        before do
+            @base_model = model_stub
+        end
+
+        it "returns true if the model is registered as child of self" do
+            sub_model = Class.new(ModelStub)
+            base_model.register_submodel(sub_model)
+            assert base_model.has_submodel?(sub_model)
+        end
+
+        it "returns false for unrelated models" do
+            sub_model = Class.new(ModelStub)
+            refute base_model.has_submodel?(sub_model)
+        end
+    end
+
+    describe "#permanent_definition_context?" do
+        it "returns true for toplevel objects" do
+            assert Constant.permanent_definition_context?
+        end
+        it "returns true for models defined in non-metaruby modules" do
+            assert Mod::Constant.permanent_definition_context?
+        end
+        it "returns true for models defined in metaruby modules that are permanent" do
+            assert PermanentMetaRubyContext::Constant.permanent_definition_context?
+        end
+        it "returns false for models defined in metaruby modules that are not permanent" do
+            refute NonPermanentMetaRubyContext::Constant.permanent_definition_context?
+        end
+        it "returns false if the context name cannot be resolved" do
+            flexmock(Mod::Constant).should_receive(:constant).with("::Mod").and_raise(NameError)
+            refute Mod::Constant.permanent_definition_context?
+        end
     end
 
     describe "#register_submodel" do
@@ -46,7 +99,25 @@ describe MetaRuby::Registration do
         end
     end
 
-    describe "#deregister_submodel" do
+    describe "#each_submodel" do
+        attr_reader :base_model
+        before do
+            @base_model = model_stub
+        end
+
+        it "filters out submodels that have been garbage-collected" do
+            sub1 = Class.new(ModelStub)
+            sub2 = Class.new(ModelStub)
+            base_model.register_submodel(sub1)
+            base_model.register_submodel(sub2)
+            flexmock(base_model.submodels[0]).should_receive(:__getobj__).and_raise(WeakRef::RefError)
+            assert_equal [sub2], base_model.each_submodel.to_a
+            assert_equal [sub2], base_model.each_submodel.to_a
+            assert_equal 1, base_model.submodels.size
+        end
+    end
+
+    describe "#deregister_submodels" do
         attr_reader :base_model, :sub_model
         before do
             @base_model = model_stub
@@ -78,9 +149,16 @@ describe MetaRuby::Registration do
         it "returns false if no models got deregistered" do
             assert !base_model.deregister_submodels([flexmock])
         end
+        it "ignores garbage collected models" do
+            sub2 = Class.new(ModelStub)
+            base_model.register_submodel(sub2)
+            flexmock(base_model.submodels[0]).should_receive(:__getobj__).and_raise(WeakRef::RefError)
+            base_model.deregister_submodels([sub2])
+            assert base_model.submodels.empty?
+        end
     end
 
-    describe "#clear_models" do
+    describe "#clear_submodels" do
         attr_reader :base_model, :sub_model
         before do
             @base_model = model_stub
@@ -120,6 +198,27 @@ describe MetaRuby::Registration do
             flexmock(sub_model).should_receive(:clear_submodels).once.ordered
             base_model.clear_submodels
         end
+
+        describe "models accessible by name" do
+            after do
+                if PermanentMetaRubyContext.const_defined?(:Test, false)
+                    PermanentMetaRubyContext.send(:remove_const, :Test)
+                end
+            end
+            it "deregisters non-permanent submodels" do
+                PermanentMetaRubyContext.const_set :Test, sub_model
+                sub_model.permanent_model = false
+                base_model.clear_submodels
+                assert !PermanentMetaRubyContext.const_defined?(:Test, false)
+            end
+
+            it "does not deregister permanent submodels" do
+                PermanentMetaRubyContext.const_set :Test, sub_model
+                sub_model.permanent_model = true
+                base_model.clear_submodels
+                assert_same sub_model, PermanentMetaRubyContext::Test
+            end
+        end
     end
 
     describe "#accessible_by_name?" do
@@ -133,6 +232,13 @@ describe MetaRuby::Registration do
 
         it "should be false for anonymous classes / modules" do
             klass = Class.new { extend MetaRuby::Registration }
+            assert !klass.accessible_by_name?
+        end
+
+        it "returns false for models whose name cannot be resolved" do
+            klass = Class.new { extend MetaRuby::Registration }
+            flexmock(klass).should_receive(:name).and_return("DoesNotExist")
+            flexmock(klass).should_receive(:constant).with("::DoesNotExist").and_raise(NameError)
             assert !klass.accessible_by_name?
         end
     end

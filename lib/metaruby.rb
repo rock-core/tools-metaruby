@@ -1,10 +1,10 @@
 require 'utilrb/object/attribute'
 require 'weakref'
 
-require 'metaruby/inherited_attribute'
+require 'metaruby/attributes'
 require 'metaruby/registration'
-require 'metaruby/module'
-require 'metaruby/class'
+require 'metaruby/model_as_module'
+require 'metaruby/model_as_class'
 
 require 'utilrb/logger'
 

@@ -2,17 +2,22 @@ require 'metaruby/test'
 
 class TC_Models < MiniTest::Test
     def test_inherited_attribute_class
+        a_meta = Module.new do
+            extend MetaRuby::Attributes
+            inherited_attribute(:signature, :signatures) { Array.new }
+            inherited_attribute(:mapped, :map, :map => true) { Hash.new }
+        end
 	a = Class.new do
-            class << self
-                extend MetaRuby::Attributes
-                inherited_attribute(:signature, :signatures) { Array.new }
-                inherited_attribute(:mapped, :map, :map => true) { Hash.new }
-            end
+            extend a_meta
 	end
+        b_meta = Module.new do
+            extend MetaRuby::Attributes
+	    inherited_attribute(:child_attribute) { Array.new }
+        end
 	b = Class.new(a) do
 	    include Module.new # include an empty module between a and b to check that the module
 			       # is skipped transparently
-	    singleton_class.inherited_attribute(:child_attribute) { Array.new }
+            extend b_meta
 	end
 	check_inherited_attribute(a, b)
 	
@@ -208,31 +213,34 @@ end
 
 describe MetaRuby::Attributes do
     describe "#inherited_attribute" do
-        it "does not stop at an empty level" do
-            base = Class.new do
-                class << self
-                    extend MetaRuby::Attributes
-                    inherited_attribute(:var, :vars) { Array.new }
-                end
+        attr_reader :meta, :base, :sub, :subsub
+        before do
+            @meta = Module.new do
+                extend MetaRuby::Attributes
+                inherited_attribute(:var, :vars) { Array.new }
             end
-            sub = Class.new(base)
-            subsub = Class.new(sub)
+            @base = Class.new
+            base.extend meta
+            @sub = Class.new(base)
+            @subsub = Class.new(sub)
+        end
+
+        it "does not stop at an empty level" do
             base.vars << 10
             subsub.vars << 20
             assert_equal [20, 10], subsub.each_var.to_a
         end
-
     end
     describe "#inherited_single_value_attribute" do
         attr_reader :base, :sub, :subsub
         describe "plain" do
             before do
-                @base = Class.new do
-                    class << self
-                        extend MetaRuby::Attributes
-                        inherited_single_value_attribute :var
-                    end
+                meta = Module.new do
+                    extend MetaRuby::Attributes
+                    inherited_single_value_attribute :var
                 end
+                @base = Class.new
+                base.extend meta
                 @sub = Class.new(base)
                 @subsub = Class.new(sub)
             end
@@ -254,12 +262,12 @@ describe MetaRuby::Attributes do
 
         describe "with default" do
             before do
-                @base = Class.new do
-                    class << self
-                        extend MetaRuby::Attributes
-                        inherited_single_value_attribute(:var) { 10 }
-                    end
+                meta = Module.new do
+                    extend MetaRuby::Attributes
+                    inherited_single_value_attribute(:var) { 10 }
                 end
+                @base = Class.new
+                base.extend meta
                 @sub = Class.new(base)
                 @subsub = Class.new(sub)
             end
@@ -280,23 +288,24 @@ describe MetaRuby::Attributes do
 
         describe "with promotion" do
             before do
-                @base = Class.new do
-                    class << self
-                        extend MetaRuby::Attributes
-                        def promote_var(value); value * 2 end
-                        inherited_single_value_attribute(:var)
-                    end
+                meta = Module.new do
+                    extend MetaRuby::Attributes
+                    def promote_var(value); value * 2 end
+                    inherited_single_value_attribute(:var)
                 end
-                @sub = Class.new(base) do
-                    class << self
-                        def promote_var(value); value * 4 end
-                    end
+                @base = Class.new
+                base.extend meta
+                meta_sub = Module.new do
+                    def promote_var(value); value * 4 end
                 end
-                @subsub = Class.new(sub) do
-                    class << self
-                        def promote_var(value); value - 10 end
-                    end
+                @sub = Class.new(base)
+                sub.extend meta_sub
+
+                meta_subsub = Module.new do
+                    def promote_var(value); value - 10 end
                 end
+                @subsub = Class.new(sub)
+                subsub.extend meta_subsub
             end
 
             it "should apply the promotion method at each level" do
@@ -309,23 +318,24 @@ describe MetaRuby::Attributes do
 
         describe "with default with promotion" do
             before do
-                @base = Class.new do
-                    class << self
-                        extend MetaRuby::Attributes
-                        def promote_var(value); value * 2 end
-                        inherited_single_value_attribute(:var) { 10 }
-                    end
+                meta = Module.new do
+                    extend MetaRuby::Attributes
+                    def promote_var(value); value * 2 end
+                    inherited_single_value_attribute(:var) { 10 }
                 end
-                @sub = Class.new(base) do
-                    class << self
-                        def promote_var(value); value * 4 end
-                    end
+                @base = Class.new
+                base.extend meta
+
+                meta_sub = Module.new do
+                    def promote_var(value); value * 4 end
                 end
-                @subsub = Class.new(sub) do
-                    class << self
-                        def promote_var(value); value - 10 end
-                    end
+                @sub = Class.new(base)
+                sub.extend meta_sub
+                @subsub = Class.new(sub)
+                meta_subsub = Module.new do
+                    def promote_var(value); value - 10 end
                 end
+                subsub.extend meta_subsub
             end
 
             it "should apply the promotion method at each level" do

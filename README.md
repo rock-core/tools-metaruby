@@ -1,6 +1,8 @@
-# Metamodelling in the Ruby type system
+[![Build Status](https://travis-ci.org/rock-core/tools-metaruby.svg?branch=master)](https://travis-ci.org/rock-core/tools-metaruby)
+[![Gem Version](https://badge.fury.io/rb/metaruby.svg)](http://badge.fury.io/rb/metaruby)
+[![Documentation](http://b.repl.ca/v1/yard-docs-blue.png)](http://rubydoc.info/gems/metaruby/frames)
 
-* https://gitorious.org/rock-toolchain/metaruby
+# Metamodelling in the Ruby type system
 
 MetaRuby is a library that allows to (ab)use the Ruby type system to create
 reflexive programs: create a specialized modelling API (a.k.a. "a DSL") at the

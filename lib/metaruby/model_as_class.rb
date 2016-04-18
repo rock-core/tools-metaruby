@@ -37,15 +37,13 @@ module MetaRuby
         #
         # @return [String] the assigned name
         def name=(name)
-            # This is dynamically defined. The reason is that there is no way to
-            # call 'super' to get the default Class#name, so we define our name
-            # only when it is explicitely assigned
-            def self.name
-                if @name then @name
-                else super
-                end
-            end
             @name = name
+        end
+
+        def name
+            if @name then @name
+            else super
+            end
         end
 
         # The model next in the ancestry chain, or nil if +self+ is root
@@ -78,10 +76,10 @@ module MetaRuby
             Thread.current[FROM_NEW_SUBMODEL_TLS] = true
             model = self.class.new(self)
             model.permanent_model = false
+            setup_submodel(model, **submodel_options, &block)
             if name
                 model.name = name
             end
-            setup_submodel(model, **submodel_options, &block)
             model
         end
 
@@ -92,6 +90,8 @@ module MetaRuby
 
         # Called at the end of the definition of a new submodel
         def setup_submodel(submodel, register: true, **options, &block)
+            submodel.instance_variable_set :@name, nil
+
             if register
                 register_submodel(submodel)
             end
@@ -107,6 +107,7 @@ module MetaRuby
             Thread.current[FROM_NEW_SUBMODEL_TLS] = false
 
             subclass.definition_location = call_stack
+            subclass.instance_variable_set :@name, nil
             super
             subclass.permanent_model = subclass.accessible_by_name? &&
                 subclass.permanent_definition_context?
@@ -118,6 +119,11 @@ module MetaRuby
         # Call to declare that this model provides the given model-as-module
         def provides(model_as_module)
             include model_as_module
+        end
+
+        def self.extend_object(klass)
+            super
+            klass.instance_variable_set :@name, nil
         end
 
         # Tests whether the given model-as-module is provided by self

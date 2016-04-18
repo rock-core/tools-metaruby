@@ -1,5 +1,8 @@
 require 'metaruby/test'
 
+module ResolvableContext
+end
+
 describe MetaRuby::ModelAsModule do
     include MetaRuby::SelfTest
 
@@ -43,6 +46,17 @@ describe MetaRuby::ModelAsModule do
             assert_raises(ArgumentError) do
                 other_root_model.provides root_model
             end
+        end
+        it "updates #supermodel to the model's supermodel if the new supermodel provides the current one" do
+            root = Module.new { extend MetaRuby::ModelAsModule }
+            root.root = true
+            subroot = root.new_submodel
+            subroot.root = true
+            subroot_model = subroot.new_submodel
+
+            model = root.new_submodel
+            model.provides subroot_model
+            assert_same subroot, model.supermodel
         end
     end
 
@@ -96,6 +110,54 @@ describe MetaRuby::ModelAsModule do
             result = MetaRuby::ModelAsModule.create_and_register_submodel(definition_context, 'Test', base_m)
             assert !result.permanent_model?
         end
+        it "calls setup_submodel on an already registered constant" do
+            definition_context.const_set('Test', base_m.new_submodel)
+            flexmock(base_m).should_receive(:setup_submodel).once.pass_thru
+            MetaRuby::ModelAsModule.create_and_register_submodel(definition_context, 'Test', base_m)
+        end
+    end
+
+    describe "#name" do
+        attr_reader :base_m
+        before do
+            @base_m = Module.new do
+                extend MetaRuby::ModelAsModule
+                def self.root?; true end
+            end
+        end
+
+        after do
+            if ResolvableContext.const_defined?(:Base, false)
+                ResolvableContext.send(:remove_const, :Base)
+            end
+            if ResolvableContext.const_defined?(:Test, false)
+                ResolvableContext.send(:remove_const, :Test)
+            end
+        end
+
+        it "is nil by default" do
+            assert !base_m.name
+            assert !base_m.new_submodel.name
+        end
+
+        it "is set to the module's default name if assigned to a resolvable constant" do
+            ResolvableContext.const_set :Base, base_m
+            ResolvableContext.const_set :Test, (test_m = base_m.new_submodel)
+            assert_equal "ResolvableContext::Base", base_m.name
+            assert_equal "ResolvableContext::Test", test_m.name
+        end
+
+        it "can be overriden" do
+            ResolvableContext.const_set :Test, (test_m = base_m.new_submodel)
+            test_m.name = "Override"
+            assert_equal "Override", test_m.name
+        end
+
+        it "can be set in #new_submodel" do
+            test_m = base_m.new_submodel(name: 'Override')
+            ResolvableContext.const_set :Test, test_m
+            assert_equal "Override", test_m.name
+        end
     end
 
     describe "#clear_model" do
@@ -120,6 +182,41 @@ describe MetaRuby::ModelAsModule do
             model_m.permanent_model = true
             model_m.clear_model
             assert model_m.parent_models.empty?
+        end
+    end
+
+    describe "#has_submodel?" do
+        attr_reader :root_m
+        before do
+            @root_m = Module.new do
+                extend MetaRuby::ModelAsModule
+                self.root = true
+            end
+        end
+
+        it "returns true if the receiver is the model's supermodel" do
+            assert root_m.has_submodel?(root_m.new_submodel)
+        end
+        it "returns true if the receiver is the model's supermodel's supermodel" do
+            subroot_m = root_m.new_submodel
+            subroot_m.root = true
+            m = subroot_m.new_submodel
+            assert root_m.has_submodel?(m)
+            assert subroot_m.has_submodel?(m)
+        end
+        it "returns false if the model is unrelated" do
+            refute root_m.new_submodel.has_submodel?(root_m.new_submodel)
+        end
+        it "returns false if the receiver is provided but it is not one of the supermodels" do
+            m = root_m.new_submodel
+            m.provides(provided_m = root_m.new_submodel)
+            refute provided_m.has_submodel?(m)
+        end
+        it "returns false for a model-as-class that provides the model-as-module" do
+            klass = Class.new { extend MetaRuby::ModelAsClass }
+            klass.provides(m = root_m.new_submodel)
+            assert !m.has_submodel?(klass)
+            assert !m.has_submodel?(klass.new_submodel)
         end
     end
 end
