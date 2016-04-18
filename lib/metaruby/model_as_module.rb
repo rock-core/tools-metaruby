@@ -125,7 +125,11 @@ module MetaRuby
                 if name
                     name.dup
                 end
-            model.definition_location = call_stack
+            model.definition_location = 
+                if MetaRuby.keep_definition_location?
+                    call_stack
+                else Array.new
+                end
             setup_submodel(model, submodel_options, &block)
             model
         end

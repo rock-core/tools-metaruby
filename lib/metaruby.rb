@@ -20,5 +20,10 @@ module MetaRuby
     LIB_DIR = File.expand_path('metaruby', File.dirname(__FILE__))
 
     extend Logger::Root('MetaRuby', Logger::WARN)
+
+    class << self
+        attr_predicate :keep_definition_location?, true
+    end
+    self.keep_definition_location = true
 end
 

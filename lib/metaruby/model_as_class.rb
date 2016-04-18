@@ -106,7 +106,11 @@ module MetaRuby
             from_new_submodel = Thread.current[FROM_NEW_SUBMODEL_TLS]
             Thread.current[FROM_NEW_SUBMODEL_TLS] = false
 
-            subclass.definition_location = call_stack
+            subclass.definition_location = 
+                if MetaRuby.keep_definition_location?
+                    call_stack
+                else Array.new
+                end
             subclass.instance_variable_set :@name, nil
             super
             subclass.permanent_model = subclass.accessible_by_name? &&

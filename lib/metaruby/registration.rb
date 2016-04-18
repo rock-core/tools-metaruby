@@ -70,7 +70,11 @@ module MetaRuby
         # Call to register a model that is a submodel of +self+
         def register_submodel(klass)
             if !klass.definition_location
-                klass.definition_location = call_stack
+                klass.definition_location = 
+                    if MetaRuby.keep_definition_location?
+                        call_stack
+                    else Array.new
+                    end
             end
 
             submodels << WeakRef.new(klass)
