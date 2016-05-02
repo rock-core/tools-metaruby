@@ -69,6 +69,10 @@ module MetaRuby
 
         # Call to register a model that is a submodel of +self+
         def register_submodel(klass)
+            if klass.singleton_class?
+                raise ArgumentError, "cannot register a singleton class"
+            end
+
             if !klass.definition_location
                 klass.definition_location = 
                     if MetaRuby.keep_definition_location?
