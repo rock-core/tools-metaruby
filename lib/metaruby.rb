@@ -1,6 +1,8 @@
 require 'utilrb/object/attribute'
 require 'weakref'
 
+require 'metaruby/backward/singleton_class_p'
+
 require 'metaruby/attributes'
 require 'metaruby/registration'
 require 'metaruby/model_as_module'
