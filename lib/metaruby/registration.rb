@@ -1,6 +1,5 @@
 require 'facets/module/spacename'
 require 'facets/module/basename'
-require 'facets/kernel/call_stack'
 require 'utilrb/object/attribute'
 require 'utilrb/module/attr_predicate'
 
@@ -11,9 +10,9 @@ module MetaRuby
     # returns the model that is parent of +self+
     module Registration
         # The place where this model got defined in the source code
-        # The tuple is (file,lineno,method), and can be obtained with
-        # facet's #call_stack
-        # @return [Array<(String,Integer,Symbol)>]
+        # This is an array of Thread::Backtrace::Locations
+        #
+        # @return [Array<Thread::Backtrace::Locations>]
         attr_accessor :definition_location
 
         # Tells {#clear_submodels} whether this model should be removed from
@@ -76,7 +75,7 @@ module MetaRuby
             if !klass.definition_location
                 klass.definition_location = 
                     if MetaRuby.keep_definition_location?
-                        call_stack
+                        caller_locations
                     else Array.new
                     end
             end

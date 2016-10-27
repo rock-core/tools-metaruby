@@ -1,8 +1,89 @@
 require 'metaruby/test'
+require 'metaruby/dsls/doc'
 require 'metaruby/dsls/find_through_method_missing'
 
 describe MetaRuby::DSLs do
     include MetaRuby::SelfTest
+
+    describe '.parse_documentation_block' do
+        it "returns the block just before the call to the matching method" do
+            env = Class.new do
+                def dsl_method; MetaRuby::DSLs.parse_documentation_block(/.*/, /dsl_/) end
+                def calling_method; dsl_method end
+            end.new
+            flexmock(MetaRuby::DSLs).should_receive(:parse_documentation_block_at).
+                with(__FILE__, __LINE__ - 3).once.and_return(block = flexmock)
+            assert_equal block, env.calling_method
+        end
+
+        it "ignores method_missing calls between the dsl method and its caller" do
+            env = Class.new do
+                def dsl_method; MetaRuby::DSLs.parse_documentation_block(/.*/, /dsl_/) end
+                def calling_method; dsl end
+                def method_missing(m, *args)
+                    if m == :dsl
+                        dsl_method
+                    else super
+                    end
+                end
+            end.new
+            flexmock(MetaRuby::DSLs).should_receive(:parse_documentation_block_at).
+                with(__FILE__, __LINE__ - 9).once.and_return(block = flexmock)
+            assert_equal block, env.calling_method
+        end
+
+        it "returns nil if the matched callsite is not a file" do
+            env = Class.new do
+                def dsl_method; MetaRuby::DSLs.parse_documentation_block(/.*/, /dsl_/) end
+                def calling_method; dsl_method end
+            end.new
+            flexmock(File).should_receive(:file?).with(__FILE__).and_return(false)
+            flexmock(File).should_receive(:file?).pass_thru
+            flexmock(MetaRuby::DSLs).should_receive(:parse_documentation_block_at).never
+            assert_nil env.calling_method
+        end
+    end
+
+    describe ".parse_documentation_block_at" do
+        it "returns the comment block just before the given file/line, with the comment part removed" do
+            # This is the expected comment
+            # Block
+            assert_equal "This is the expected comment\nBlock", MetaRuby::DSLs.parse_documentation_block_at(__FILE__, __LINE__)
+        end
+        it "stops if there is an empty line" do
+            # Block
+            
+            # This is the expected part
+            assert_equal "This is the expected part", MetaRuby::DSLs.parse_documentation_block_at(__FILE__, __LINE__)
+        end
+        it "keeps formatting within the block" do
+            # First line
+            #   Indented second line
+            #   Indented third line
+            # Fourth line
+            assert_equal "First line\n  Indented second line\n  Indented third line\nFourth line",
+                MetaRuby::DSLs.parse_documentation_block_at(__FILE__, __LINE__ - 1)
+        end
+        it "ignores empty comment lines when removing leading spaces" do
+            # First line
+            #   Indented second line
+            #   Indented third line
+            #
+            # Fourth line
+            assert_equal "First line\n  Indented second line\n  Indented third line\n\nFourth line",
+                MetaRuby::DSLs.parse_documentation_block_at(__FILE__, __LINE__ - 1)
+        end
+
+        it "considers formatting spaces only after the comment sign" do
+            # First line
+                #   Indented second line
+                #   Indented third line
+            #
+            # Fourth line
+            assert_equal "First line\n  Indented second line\n  Indented third line\n\nFourth line",
+                MetaRuby::DSLs.parse_documentation_block_at(__FILE__, __LINE__ - 1)
+        end
+    end
 
     describe "#find_through_method_missing" do
         it "should call the corresponding find method when matching" do

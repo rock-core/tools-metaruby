@@ -107,7 +107,7 @@ module MetaRuby
 
             subclass.definition_location = 
                 if MetaRuby.keep_definition_location?
-                    call_stack
+                    caller_locations
                 else Array.new
                 end
             subclass.instance_variable_set :@name, nil

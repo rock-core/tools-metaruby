@@ -12,19 +12,19 @@ module MetaRuby
         #   documentation
         def self.parse_documentation_block(file_match, trigger_method = /.*/)
             last_method_matched = false
-            call_stack.each do |call|
+            caller_locations(1).each do |call|
                 this_method_matched =
-                    if trigger_method === call[2].to_s
+                    if trigger_method === call.label
                         true
-                    elsif call[2] == :method_missing
+                    elsif call.label == 'method_missing'
                         last_method_matched
                     else
                         false
                     end
 
-                if !this_method_matched && last_method_matched && (file_match === call[0])
-                    if File.file?(call[0])
-                        return parse_documentation_block_at(call[0], call[1])
+                if !this_method_matched && last_method_matched && (file_match === call.absolute_path)
+                    if File.file?(call.absolute_path)
+                        return parse_documentation_block_at(call.absolute_path, call.lineno)
                     else return
                     end
                 end
@@ -47,31 +47,26 @@ module MetaRuby
             # Lines are given 1-based (as all editors work that way), and we
             # want the line before the definition. Remove two
             line = line - 2
+
+            space_count = nil
             while true
-                case l = lines[line]
-                when /^\s*$/
-                    break
-                when /^\s*#/
-                    block << l
+                l = lines[line]
+                comment_match = /^\s*#/.match(l)
+                if comment_match
+                    comment_line  = comment_match.post_match.rstrip
+                    stripped_line = comment_line.lstrip
+                    leading_spaces = comment_line.size - stripped_line.size
+                    if !stripped_line.empty? && (!space_count || space_count > leading_spaces)
+                        space_count = leading_spaces
+                    end
+                    block.unshift(comment_line)
                 else break
                 end
                 line = line - 1
             end
-            block = block.map do |l|
-                l.strip.gsub(/^\s*#/, '')
-            end
-            # Now remove the same amount of spaces in front of each lines
-            space_count = block.map do |l|
-                l =~ /^(\s*)/
-                if $1.size != l.size
-                    $1.size
-                end
-            end.compact.min
-            block = block.map do |l|
-                l[space_count..-1]
-            end
             if !block.empty?
-                block.reverse.join("\n")
+                space_count ||= 0
+                block.map { |l| l[space_count..-1] }.join("\n")
             end
         end
     end
