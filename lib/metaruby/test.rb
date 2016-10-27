@@ -31,6 +31,9 @@ if ENV['TEST_ENABLE_PRY'] != '0'
     end
 end
 
+FlexMock.partials_are_based = true
+FlexMock.partials_verify_signatures = true
+
 module MetaRuby
     # This module is the common setup for all tests
     #

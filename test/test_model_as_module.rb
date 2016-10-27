@@ -91,22 +91,22 @@ describe MetaRuby::ModelAsModule do
         end
 
         it "should set permanent_model to true if the enclosing module is a Ruby module that is accessible by name" do
-            flexmock(MetaRuby::Registration).should_receive(:accessible_by_name?).with(definition_context).and_return(true)
+            flexmock(MetaRuby::Registration).should_receive(:accessible_by_name?).once.with(definition_context).and_return(true)
             result = MetaRuby::ModelAsModule.create_and_register_submodel(definition_context, 'Test', base_m)
             assert result.permanent_model?
         end
         it "should set permanent_model to false if the enclosing module is a Ruby module that is not accessible by name" do
-            flexmock(definition_context).should_receive(:accessible_by_name?).and_return(false)
+            flexmock(MetaRuby::Registration).should_receive(:accessible_by_name?).once.with(definition_context).and_return(false)
             result = MetaRuby::ModelAsModule.create_and_register_submodel(definition_context, 'Test', base_m)
             assert !result.permanent_model?
         end
         it "should set permanent_model to true if the enclosing module is permanent" do
-            flexmock(definition_context).should_receive(:permanent_model?).and_return(true)
+            flexmock(definition_context).should_receive(:permanent_model?).explicitly.and_return(true)
             result = MetaRuby::ModelAsModule.create_and_register_submodel(definition_context, 'Test', base_m)
             assert result.permanent_model?
         end
         it "should set permanent_model to false if the enclosing module is non-permanent" do
-            flexmock(definition_context).should_receive(:permanent_model?).and_return(false)
+            flexmock(definition_context).should_receive(:permanent_model?).explicitly.and_return(false)
             result = MetaRuby::ModelAsModule.create_and_register_submodel(definition_context, 'Test', base_m)
             assert !result.permanent_model?
         end

@@ -35,7 +35,7 @@ describe MetaRuby::Registration do
     def model_stub(parent_model = nil)
         result = Class.new(ModelStub)
         result.permanent_model = false
-        flexmock(result).should_receive(:supermodel).and_return(parent_model).by_default
+        flexmock(result).should_receive(:supermodel).explicitly.and_return(parent_model).by_default
         if parent_model
             parent_model.register_submodel(result)
         end
@@ -93,7 +93,7 @@ describe MetaRuby::Registration do
         it "registers the model on the receiver's parent model" do
             parent_model = Class.new(ModelStub)
             sub_model = Class.new(ModelStub)
-            flexmock(base_model).should_receive(:supermodel).and_return(parent_model)
+            flexmock(base_model).should_receive(:supermodel).explicitly.and_return(parent_model)
             flexmock(parent_model).should_receive(:register_submodel).with(sub_model).once
             base_model.register_submodel(sub_model)
         end
@@ -125,25 +125,25 @@ describe MetaRuby::Registration do
         end
 
         it "deregisters the models on the receiver" do
-            flexmock(base_model).should_receive(:supermodel).and_return(nil).once
+            flexmock(base_model).should_receive(:supermodel).explicitly.and_return(nil).once
             base_model.deregister_submodels([sub_model])
             assert(base_model.each_submodel.to_a.empty?)
         end
         it "deregisters the models on the receiver's parent model" do
             parent_model = flexmock
-            flexmock(base_model).should_receive(:supermodel).and_return(parent_model)
+            flexmock(base_model).should_receive(:supermodel).explicitly.and_return(parent_model)
             flexmock(parent_model).should_receive(:deregister_submodels).with([sub_model]).once
             base_model.deregister_submodels([sub_model])
         end
         it "always calls the parent model's deregister method" do
             parent_model = flexmock
-            flexmock(base_model).should_receive(:supermodel).and_return(parent_model)
+            flexmock(base_model).should_receive(:supermodel).explicitly.and_return(parent_model)
             flexmock(base_model).should_receive(:deregister_submodels).with([sub_model]).pass_thru
             flexmock(parent_model).should_receive(:deregister_submodels).with([sub_model]).once
             base_model.deregister_submodels([sub_model])
         end
         it "returns true if a model got deregistered" do
-            flexmock(base_model).should_receive(:supermodel).and_return(nil).once
+            flexmock(base_model).should_receive(:supermodel).explicitly.and_return(nil).once
             assert base_model.deregister_submodels([sub_model])
         end
         it "returns false if no models got deregistered" do
@@ -251,7 +251,7 @@ describe MetaRuby::Registration do
             end
             @supermodel = flexmock
             supermodel.should_receive(:deregister_submodels).by_default
-            flexmock(obj).should_receive(:supermodel).and_return(supermodel)
+            flexmock(obj).should_receive(:supermodel).explicitly.and_return(supermodel)
         end
 
         it "should deregister itself from its parent models if it is non-permanent and has supermodels" do
