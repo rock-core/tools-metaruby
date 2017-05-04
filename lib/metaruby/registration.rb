@@ -111,11 +111,18 @@ module MetaRuby
                 if m = supermodel
                     m.deregister_submodels([self])
                 end
-                if Registration.accessible_by_name?(self)
-                    Registration.deregister_constant(self)
-                end
+                clear_registration_as_constant
             end
             clear_submodels
+        end
+
+        # Removes any constant this model is registered as
+        def clear_registration_as_constant
+            # Deregister non-permanent models that are registered in the
+            # constant hierarchy
+            if Registration.accessible_by_name?(self)
+                Registration.deregister_constant(self)
+            end
         end
         
         # Removes the constant that stores the given object in the Ruby constant
@@ -129,17 +136,13 @@ module MetaRuby
 
         # Recursively deregisters all non-permanent submodels
         def clear_submodels
-            children = each_submodel.find_all { |m| !m.permanent_model? }
-            if !children.empty?
-                deregister_submodels(children)
+            permanent, non_permanent = each_submodel.partition { |m| m.permanent_model? }
+            if !non_permanent.empty?
+                deregister_submodels(non_permanent)
             end
 
-            children.each do |m|
-                # Deregister non-permanent models that are registered in the
-                # constant hierarchy
-                if Registration.accessible_by_name?(m)
-                    Registration.deregister_constant(m)
-                end
+            non_permanent.each do |m|
+                m.clear_registration_as_constant
             end
 
             # This contains the permanent submodels
@@ -147,9 +150,9 @@ module MetaRuby
             # We can call #clear_submodels while iterating here as it is a
             # constraint that all models in #submodels are permanent (and
             # will therefore not be removed)
-            each_submodel { |m| m.clear_submodels }
+            permanent.each { |m| m.clear_submodels }
             # And this the non-permanent ones
-            children.each { |m| m.clear_submodels }
+            non_permanent.each { |m| m.clear_submodels }
             true
         end
 
