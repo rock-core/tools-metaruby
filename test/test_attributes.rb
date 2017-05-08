@@ -256,7 +256,7 @@ describe MetaRuby::Attributes do
             it "should return nil if the instance variable is explicitly set to nil" do
                 base.var 10
                 sub.var nil
-                assert_equal nil, subsub.var
+                assert_nil subsub.var
             end
         end
 
@@ -281,8 +281,8 @@ describe MetaRuby::Attributes do
             it "should set only the bottom class" do
                 assert_equal 10, base.var
                 sub.var(nil)
-                assert_equal nil, sub.var
-                assert_equal nil, subsub.var
+                assert_nil sub.var
+                assert_nil subsub.var
             end
         end
 
