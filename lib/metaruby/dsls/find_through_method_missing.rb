@@ -35,14 +35,29 @@ module MetaRuby
                 find_through_method_missing(m, args, call: true) || super
             end
 
+            module Infect
+                def included(klass_or_mod)
+                    super
+                    if klass_or_mod.kind_of?(Module) && !klass_or_mod.kind_of?(Class)
+                        klass_or_mod.extend Infect
+                    end
+                    klass_or_mod.extend ClassExtension
+                end
+
+                def extended(klass_or_mod)
+                    super
+                    klass_or_mod.singleton_class.extend ClassExtension
+                end
+            end
+            extend Infect
+
             module ClassExtension
                 extend Attributes
+
                 inherited_attribute(:metaruby_find_through_method_missing_suffix, :metaruby_find_through_method_missing_suffixes, map: true) { Hash.new }
                 def metaruby_find_through_method_missing_all_suffixes
                     if @__metaruby_find_through_method_missing_all_suffixes
                         return @__metaruby_find_through_method_missing_all_suffixes
-                    elsif !@metaruby_find_through_method_missing_suffixes
-                        return @__metaruby_find_through_method_missing_all_suffixes = superclass.metaruby_find_through_method_missing_all_suffixes
                     end
 
                     suffix_to_method = Hash.new
@@ -59,10 +74,7 @@ module MetaRuby
         end
     
         def self.setup_find_through_method_missing(klass, **suffixes)
-            if !(klass < FindThroughMethodMissing::ClassExtension)
-                 klass.extend FindThroughMethodMissing::ClassExtension
-                 klass.include FindThroughMethodMissing
-            end
+            klass.include FindThroughMethodMissing
             suffixes.each do |suffix, find_method|
                 if !klass.method_defined?(find_method)
                     raise ArgumentError, "find method '#{find_method}' listed for '#{suffix}' does not exist"

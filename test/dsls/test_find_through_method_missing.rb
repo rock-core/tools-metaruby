@@ -4,6 +4,34 @@ require 'metaruby/dsls/find_through_method_missing'
 module MetaRuby
     module DSLs
         describe FindThroughMethodMissing do
+            describe "used on modules" do
+                it "supports the model-as-class scheme" do
+                    model = Module.new do
+                        def find_event(e); end
+                        MetaRuby::DSLs.setup_find_through_method_missing self, event: 'find_event'
+                    end
+                    k = Class.new do
+                        extend model
+                    end
+
+                    flexmock(k).should_receive(:find_event).with('named').and_return(ret = flexmock)
+                    assert_equal ret, k.named_event
+                end
+                it "setup done on module propagates to the classes the module is included in" do
+                    m = Module.new do
+                        def find_event(e); end
+                        MetaRuby::DSLs.setup_find_through_method_missing self, event: 'find_event'
+                    end
+                    k = Class.new do
+                        include m
+                    end
+
+                    obj = k.new
+                    flexmock(obj).should_receive(:find_event).with('named').and_return(ret = flexmock)
+                    assert_equal ret, obj.named_event
+                end
+            end
+
             describe "setup_find_through_method_missing" do
                 it "registers the given mapping" do
                     klass = Class.new { def find_event; end }
