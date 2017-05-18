@@ -1,5 +1,78 @@
+require 'metaruby/attributes'
+
 module MetaRuby
     module DSLs
+        # Module that is included in classes that
+        # DSLs.setup_find_through_method_missing
+        module FindThroughMethodMissing
+            def find_through_method_missing(m, args, call: true)
+                return false if m == :to_ary
+                matcher, suffix_to_method = *singleton_class.metaruby_find_through_method_missing_all_suffixes
+                if m =~ matcher
+                    suffix      = $&
+                    object_name = $`
+
+                    if !args.empty?
+                        raise ArgumentError, "expected zero arguments to #{m}, got #{args.size}", caller(4)
+                    end
+
+                    find_method = suffix_to_method[suffix]
+                    if found = public_send(find_method, object_name)
+                        return found
+                    elsif call
+                        msg = "#{self} has no #{suffix[1..-1]} named #{object_name}"
+                        raise NoMethodError.new(msg, m), msg, caller(4)
+                    else return
+                    end
+                end
+            end
+
+            def respond_to_missing?(m, include_private)
+                !!find_through_method_missing(m, [], call: false) || super
+            end
+
+            def method_missing(m, *args, &block)
+                find_through_method_missing(m, args, call: true) || super
+            end
+
+            module ClassExtension
+                extend Attributes
+                inherited_attribute(:metaruby_find_through_method_missing_suffix, :metaruby_find_through_method_missing_suffixes, map: true) { Hash.new }
+                def metaruby_find_through_method_missing_all_suffixes
+                    if @__metaruby_find_through_method_missing_all_suffixes
+                        return @__metaruby_find_through_method_missing_all_suffixes
+                    elsif !@metaruby_find_through_method_missing_suffixes
+                        return @__metaruby_find_through_method_missing_all_suffixes = superclass.metaruby_find_through_method_missing_all_suffixes
+                    end
+
+                    suffix_to_method = Hash.new
+                    matcher = []
+                    each_metaruby_find_through_method_missing_suffix do |suffix, find_m|
+                        suffix = "_#{suffix}"
+                        matcher << suffix
+                        suffix_to_method[suffix] = find_m.to_sym
+                    end
+                    @__metaruby_find_through_method_missing_all_suffixes =
+                        [Regexp.new(matcher.join("$|") + "$"), suffix_to_method]
+                end
+            end
+        end
+    
+        def self.setup_find_through_method_missing(klass, **suffixes)
+            if !(klass < FindThroughMethodMissing::ClassExtension)
+                 klass.extend FindThroughMethodMissing::ClassExtension
+                 klass.include FindThroughMethodMissing
+            end
+            suffixes.each do |suffix, find_method|
+                if !klass.method_defined?(find_method)
+                    raise ArgumentError, "find method '#{find_method}' listed for '#{suffix}' does not exist"
+                end
+            end
+            suffixes.each do |suffix, find_method|
+                klass.metaruby_find_through_method_missing_suffixes[suffix.to_s] = find_method.to_sym
+            end
+        end
+
         # Generic implementation to create suffixed accessors for child objects
         # on a class
         #
@@ -46,6 +119,8 @@ module MetaRuby
         #   object.my_state # will resolve the 'my' state
         #
         def self.find_through_method_missing(object, m, args, *suffixes, call: true)
+            return false if m == :to_ary
+
             suffix_match = Hash.new
             if suffixes.last.kind_of?(Hash)
                 suffix_match.merge!(suffixes.pop)
