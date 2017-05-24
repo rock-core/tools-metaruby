@@ -72,6 +72,21 @@ module MetaRuby
             nil
         end
 
+        ANCESTORS_ACCESS =
+            if RUBY_VERSION < "2.1.0"
+                <<-EOCODE
+                ancestors = self.ancestors
+                if ancestors.first != self
+                    ancestors.unshift self
+                end
+                EOCODE
+            else
+                <<-EOCODE
+                ancestors = self.ancestors
+                EOCODE
+            end
+                
+
         # @api private
         #
         # Helper method for {#inherited_single_value_attribute} in case there
@@ -79,10 +94,7 @@ module MetaRuby
         def define_single_value_without_promotion(method_name, ivar)
             class_eval <<-EOF, __FILE__, __LINE__+1
             def #{method_name}
-                ancestors = self.ancestors
-                if ancestors.first != self
-                    ancestors.unshift self
-                end
+                #{ANCESTORS_ACCESS}
 
                 has_value = false
                 for klass in ancestors
@@ -118,10 +130,7 @@ module MetaRuby
         def define_single_value_with_promotion(method_name, promotion_method_name, ivar)
             class_eval <<-EOF, __FILE__, __LINE__+1
             def #{method_name}
-                ancestors = self.ancestors
-                if ancestors.first != self
-                    ancestors.unshift self
-                end
+                #{ANCESTORS_ACCESS}
 
                 promotions = []
                 for klass in ancestors
@@ -281,10 +290,7 @@ module MetaRuby
                     nil
                 end
                 def has_#{name}?(key)
-                    ancestors = self.ancestors
-                    if ancestors.first != self
-                        ancestors.unshift self
-                    end
+                    #{ANCESTORS_ACCESS}
                     for klass in ancestors
                         if klass.instance_variable_defined?(:@#{attribute_name})
                             return true if klass.#{attribute_name}.has_key?(key)
@@ -338,10 +344,7 @@ module MetaRuby
                     return enum_for(:each_#{name}, key, uniq)
                 end
 
-                ancestors = self.ancestors
-                if ancestors.first != self
-                    ancestors.unshift self
-                end
+                #{ANCESTORS_ACCESS}
                 if key
                     for klass in ancestors
                         if klass.instance_variable_defined?(:@#{attribute_name})
@@ -390,10 +393,7 @@ module MetaRuby
                     return enum_for(:each_#{name})
                 end
 
-                ancestors = self.ancestors
-                if ancestors.first != self
-                    ancestors.unshift self
-                end
+                #{ANCESTORS_ACCESS}
                 for klass in ancestors
                     if klass.instance_variable_defined?(:@#{attribute_name})
                         klass.#{attribute_name}.#{enum_with} { |el| yield(el) }
@@ -416,10 +416,7 @@ module MetaRuby
                     return enum_for(:each_#{name}, key, uniq)
                 end
 
-                ancestors = self.ancestors
-                if ancestors.first != self
-                    ancestors.unshift self
-                end
+                #{ANCESTORS_ACCESS}
                 if key
                     promotions = []
                     for klass in ancestors
@@ -483,10 +480,7 @@ module MetaRuby
                     return enum_for(:each_#{name})
                 end
 
-                ancestors = self.ancestors
-                if ancestors.first != self
-                    ancestors.unshift self
-                end
+                #{ANCESTORS_ACCESS}
                 promotions = []
                 for klass in ancestors
                     if klass.instance_variable_defined?(:@#{attribute_name})
