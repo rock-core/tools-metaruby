@@ -130,34 +130,34 @@ module MetaRuby
         #   object.add_state 'my'
         #   object.my_state # will resolve the 'my' state
         #
-        def self.find_through_method_missing(object, m, args, *suffixes, call: true)
+        def self.find_through_method_missing(object, m, args, suffix_match)
             return false if m == :to_ary
 
-            suffix_match = Hash.new
-            if suffixes.last.kind_of?(Hash)
-                suffix_match.merge!(suffixes.pop)
-            end
-            suffixes.each do |name|
-                suffix_match[name] = "find_#{name}"
-            end
-
+            m = m.to_s
             suffix_match.each do |s, find_method_name|
-                if m == find_method_name.to_sym
-                    raise NoMethodError.new("#{object} has no method called #{find_method_name}", m)
-                elsif m =~ /(.*)_#{s}$/
-                    name = $1
+                if m.end_with?(s)
+                    name = m[0, m.size - s.size]
                     if !args.empty?
                         raise ArgumentError, "expected zero arguments to #{m}, got #{args.size}", caller(4)
-                    elsif found = object.send(find_method_name, name)
-                        return found
-                    elsif call
-                        msg = "#{object} has no #{s} named #{name}"
-                        raise NoMethodError.new(msg, m), msg, caller(4)
-                    else return
+                    else
+                        return object.send(find_method_name, name)
                     end
                 end
             end
             nil
+        end
+
+        def self.has_through_method_missing?(object, m, suffix_match)
+            return false if m == :to_ary
+
+            m = m.to_s
+            suffix_match.each do |s, has_method_name|
+                if m.end_with?(s)
+                    name = m[0, m.size - s.size]
+                    return !!object.send(has_method_name, name)
+                end
+            end
+            false
         end
     end
 end
