@@ -292,8 +292,8 @@ module MetaRuby
                 def has_#{name}?(key)
                     #{ANCESTORS_ACCESS}
                     for klass in ancestors
-                        if klass.instance_variable_defined?(:@#{attribute_name})
-                            return true if klass.#{attribute_name}.has_key?(key)
+                        if attr = klass.instance_variable_get(:@#{attribute_name})
+                            return true if attr.has_key?(key)
                         end
                     end
                     false
@@ -311,8 +311,8 @@ module MetaRuby
             def clear_#{attribute_name}
                 #{attribute_name}.clear
                 for klass in ancestors
-                    if klass.instance_variable_defined?(:@#{attribute_name})
-                        klass.#{attribute_name}.clear
+                    if attr = klass.instance_variable_get(:@#{attribute_name})
+                        attr.clear
                     end
                 end
             end
@@ -347,17 +347,17 @@ module MetaRuby
                 #{ANCESTORS_ACCESS}
                 if key
                     for klass in ancestors
-                        if klass.instance_variable_defined?(:@#{attribute_name})
-                            if klass.#{attribute_name}.has_key?(key)
-                                yield(klass.#{attribute_name}[key])
+                        if attr = klass.instance_variable_get(:@#{attribute_name})
+                            if attr.has_key?(key)
+                                yield(attr[key])
                                 return self if uniq
                             end
                         end
                     end
                 elsif !uniq
                     for klass in ancestors
-                        if klass.instance_variable_defined?(:@#{attribute_name})
-                            klass.#{attribute_name}.#{enum_with} do |el|
+                        if attr = klass.instance_variable_get(:@#{attribute_name})
+                            attr.#{enum_with} do |el|
                                 yield(el)
                             end
                         end
@@ -365,8 +365,8 @@ module MetaRuby
                 else
                     seen = Set.new
                     for klass in ancestors
-                        if klass.instance_variable_defined?(:@#{attribute_name})
-                            klass.#{attribute_name}.#{enum_with} do |el_key, el| 
+                        if attr = klass.instance_variable_get(:@#{attribute_name})
+                            attr.#{enum_with} do |el_key, el| 
                                 if !seen.include?(el_key)
                                     seen << el_key
                                     #{if yield_key then 'yield(el_key, el)' else 'yield(el)' end}
@@ -389,14 +389,12 @@ module MetaRuby
         def self.nomap_without_promotion(name, attribute_name, enum_with: :each)
             code, file, line =<<-EOF, __FILE__, __LINE__+1
             def each_#{name}
-                if !block_given?
-                    return enum_for(:each_#{name})
-                end
+                return enum_for(__method__) if !block_given?
 
                 #{ANCESTORS_ACCESS}
                 for klass in ancestors
-                    if klass.instance_variable_defined?(:@#{attribute_name})
-                        klass.#{attribute_name}.#{enum_with} { |el| yield(el) }
+                    if attr = klass.instance_variable_get(:@#{attribute_name})
+                        attr.#{enum_with} { |el| yield(el) }
                     end
                 end
                 self
@@ -420,9 +418,9 @@ module MetaRuby
                 if key
                     promotions = []
                     for klass in ancestors
-                        if klass.instance_variable_defined?(:@#{attribute_name})
-                            if klass.#{attribute_name}.has_key?(key)
-                                value = klass.#{attribute_name}[key]
+                        if attr = klass.instance_variable_get(:@#{attribute_name})
+                            if attr.has_key?(key)
+                                value = attr[key]
                                 for p in promotions
                                     value = p.promote_#{name}(key, value)
                                 end
@@ -435,8 +433,8 @@ module MetaRuby
                 elsif !uniq
                     promotions = []
                     for klass in ancestors
-                        if klass.instance_variable_defined?(:@#{attribute_name})
-                            klass.#{attribute_name}.#{enum_with} do |k, v|
+                        if attr = klass.instance_variable_get(:@#{attribute_name})
+                            attr.#{enum_with} do |k, v|
                                 for p in promotions
                                     v = p.promote_#{name}(k, v)
                                 end
@@ -449,8 +447,8 @@ module MetaRuby
                     seen = Set.new
                     promotions = []
                     for klass in ancestors
-                        if klass.instance_variable_defined?(:@#{attribute_name})
-                            klass.#{attribute_name}.#{enum_with} do |k, v|
+                        if attr = klass.instance_variable_get(:@#{attribute_name})
+                            attr.#{enum_with} do |k, v|
                                 unless seen.include?(k)
                                     for p in promotions
                                         v = p.promote_#{name}(k, v)
@@ -483,8 +481,8 @@ module MetaRuby
                 #{ANCESTORS_ACCESS}
                 promotions = []
                 for klass in ancestors
-                    if klass.instance_variable_defined?(:@#{attribute_name})
-                        klass.#{attribute_name}.#{enum_with} do |value|
+                    if attr = klass.instance_variable_get(:@#{attribute_name})
+                        attr.#{enum_with} do |value|
                             for p in promotions
                                 value = p.promote_#{name}(value)
                             end
