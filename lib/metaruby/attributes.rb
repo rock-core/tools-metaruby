@@ -139,7 +139,7 @@ module MetaRuby
                         value = klass.instance_variable_get(:#{ivar})
                         break
                     end
-                    promotions.unshift(klass) if klass.respond_to?("#{promotion_method_name}")
+                    promotions.unshift(klass) if klass.respond_to?(:#{promotion_method_name})
                 end
                 if !has_value && respond_to?(:#{method_name}_default)
                     # Look for default
@@ -430,7 +430,7 @@ module MetaRuby
                                 return self if uniq
                             end
                         end
-                        promotions.unshift(klass) if klass.respond_to?("promote_#{name}")
+                        promotions.unshift(klass) if klass.respond_to?(:promote_#{name})
                     end
                 elsif !uniq
                     promotions = []
@@ -443,7 +443,7 @@ module MetaRuby
                                 #{if yield_key then 'yield(k, v)' else 'yield(v)' end}
                             end
                         end
-                        promotions.unshift(klass) if klass.respond_to?("promote_#{name}")
+                        promotions.unshift(klass) if klass.respond_to?(:promote_#{name})
                     end
                 else
                     seen = Set.new
@@ -460,7 +460,7 @@ module MetaRuby
                                 end
                             end
                         end
-                        promotions.unshift(klass) if klass.respond_to?("promote_#{name}")
+                        promotions.unshift(klass) if klass.respond_to?(:promote_#{name})
                     end
                 end
                 self
@@ -491,7 +491,7 @@ module MetaRuby
                             yield(value)
                         end
                     end
-                    promotions.unshift(klass) if klass.respond_to?("promote_#{name}")
+                    promotions.unshift(klass) if klass.respond_to?(:promote_#{name})
                 end
                 self
             end
