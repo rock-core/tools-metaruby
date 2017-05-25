@@ -10,6 +10,19 @@ module MetaRuby
         #   the element whose documentation we are looking for.
         # @return [String,nil] the parsed documentation, or nil if there is no
         #   documentation
+        #
+        # @example find the documentation block of an event creation
+        #   # assuming the following toplevel DSL code in a file called test.orogen
+        #   task "Task" do
+        #     # Just an example event
+        #     event "test"
+        #   end
+        #
+        #   # One would use the following code to extract the documentation
+        #   # above the test event declaration. The call must be made within the
+        #   # event creation code
+        #   MetaRuby::DSLs.parse_documentation_block(/test\.orogen$/, "event")
+        #   
         def self.parse_documentation_block(file_match, trigger_method = /.*/)
             last_method_matched = false
             caller_locations(1).each do |call|

@@ -2,6 +2,64 @@ require 'metaruby/attributes'
 
 module MetaRuby
     module DSLs
+        # Common definition of #respond_to_missing? and #method_missing to be
+        # used in conjunction with {DSLs.find_through_method_missing} and
+        # {DSLs.has_through_method_missing?}
+        #
+        # @example resolve 'event' objects using method_missing
+        #   class Task
+        #      # Tests if this task has an event by this name
+        #      #
+        #      # @param [String] name
+        #      # @return [Boolean]
+        #      def has_event?(name)
+        #      end
+        #
+        #      # Finds an event by name
+        #      #
+        #      # @param [String] name
+        #      # @return [Object,nil] the found event, or nil if there is no
+        #      #   event by this name
+        #      def find_event(name)
+        #      end
+        #
+        #      include MetaRuby::DSLs::FindThroughMethodMissing
+        #
+        #      # Check if the given method matches a find object
+        #      def has_through_method_missing?(m)
+        #        MetaRuby::DSLs.has_through_method_missing?(
+        #           self, m, '_event' => :has_event?) || super
+        #      end
+        #
+        #      # Check if the given method matches a find object
+        #      def find_through_method_missing(m, args)
+        #        MetaRuby::DSLs.find_through_method_missing(
+        #           self, m, args, '_event' => :find_event) || super
+        #      end
+        #   end
+        #
+        module FindThroughMethodMissing
+            # Empty implementation of has_through_method_missing? to allow for
+            # classes to call 'super'
+            def has_through_method_missing?(m)
+            end
+
+            # Empty implementation of find_through_method_missing to allow for
+            # classes to call 'super'
+            def find_through_method_missing(m, args)
+            end
+
+            # Resolves the given method using {#has_through_method_missing?}
+            def respond_to_missing?(m, include_private)
+                has_through_method_missing?(m) || super
+            end
+
+            # Resolves the given method using {#find_through_method_missing}
+            def method_missing(m, *args)
+                find_through_method_missing(m, args) || super
+            end
+        end
+
         # Generic implementation to create suffixed accessors for child objects
         # on a class
         #
