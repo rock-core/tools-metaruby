@@ -23,8 +23,6 @@ module MetaRuby
     # @example promotion to update back references
     #   class Port; attr_accessor :component_model end
     #   class Component
-    #       inherited_attribute(:ports, :port, map: true) { Hash.new }
-    #
     #       # Update #component_model to make it point to the receiver instead
     #       # of the original model. Note that metaruby does not memoize the
     #       # result, so it has to be done in the promote method if it is
@@ -34,6 +32,8 @@ module MetaRuby
     #           port.component_model = self
     #           port
     #       end
+    #
+    #       inherited_attribute(:ports, :port, map: true) { Hash.new }
     #   end
     module Attributes
         def included(mod)
