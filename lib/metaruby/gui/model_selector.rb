@@ -81,8 +81,8 @@ module MetaRuby
 
             # Update the view, reloading the underlying model
             def update
-                update_model_filter
                 reload
+                update_model_filter
             end
 
             # @api private
@@ -106,12 +106,36 @@ module MetaRuby
                 # The pattern has to match every element in the hierarchy. We
                 # achieve this by making the suffix part optional
                 name_rx = filter_box.text.downcase.gsub(/:+/, "/")
-                name_rx = '[^;]*,' + name_rx.split('/').join(",[^;]*;[^;]*,") + ',[^;]*'
+                name_rx = '[^;]*,[^,]*' + name_rx.split('/').join("[^,]*,[^;]*;[^;]*,") + '[^,]*,[^;]*'
                 regexp = Qt::RegExp.new("(,#{type_rx},)[^;]*;#{name_rx}")
                 regexp.case_sensitivity = Qt::CaseInsensitive
                 model_filter.filter_reg_exp = regexp
                 model_filter.invalidate
                 auto_open
+            end
+
+            def filter_row_count(parent = Qt::ModelIndex.new)
+                model_filter.row_count(parent)
+            end
+
+            def model_items_from_filter(parent = Qt::ModelIndex.new)
+                (0...filter_row_count(parent)).map do |i|
+                    model_item_from_filter_row(i, parent)
+                end
+            end
+
+            def model_item_from_filter_row(row, parent = Qt::ModelIndex.new)
+                filter_index = model_filter.index(row, 0, parent)
+                model_index  = model_filter.map_to_source(filter_index)
+                return browser_model.item_from_index(model_index), filter_index
+            end
+
+            def dump_filtered_item_model(parent = Qt::ModelIndex.new, indent = "")
+                model_items_from_filter(parent).each_with_index do |(model_item, filter_index), i|
+                    data = model_item.data(Qt::UserRole).to_string
+                    puts "#{indent}[#{i}] #{model_item.text} #{data}"
+                    dump_filtered_item_model(filter_index, indent + "  ")
+                end
             end
 
             # Auto-open in the current state

@@ -72,7 +72,7 @@ module MetaRuby
 
 
                 it "selects the items by prefix" do
-                    @model_selector.filter_box.text = "Even"
+                    @model_selector.filter_box.text = "Ev"
                     @model_selector.update_model_filter
                     assert_equal 1, filter_row_count
                     model_items_from_filter
