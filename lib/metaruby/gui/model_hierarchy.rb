@@ -91,6 +91,7 @@ module MetaRuby
                 rowCount.times do |row|
                     compute_and_store_metadata(item(row))
                 end
+                self.horizontal_header_labels = [""]
             ensure
                 end_reset_model
             end
@@ -146,6 +147,8 @@ module MetaRuby
                     context.append_row(item)
                     (@names_to_item[context] ||= Hash.new)[name.last] = item
                 end
+
+                item.flags = Qt::ItemIsEnabled
 
                 @items_metadata[item] = Metadata.new(name, name.map { |n| [n] }, model_categories)
                 @items_to_models[item] = model
@@ -243,6 +246,7 @@ module MetaRuby
                     item
                 else
                     item = Qt::StandardItem.new(name)
+                    item.flags = 0
 
                     parent_name = @items_metadata[parent_item].name
                     @items_metadata[item] = Metadata.new(parent_name + [name], [], Set.new)
