@@ -35,7 +35,7 @@ module MetaRuby
                 def each_submodel(model)
                     if model == @root_model
                         model.each_submodel do |m|
-                            yield(m) if m.name
+                            yield(m, !m.name)
                         end
                     end
                 end
@@ -43,13 +43,13 @@ module MetaRuby
 
             def initialize
                 super()
-                @root_models = Hash.new
+                @root_models = Array.new
             end
 
             RootModel = Struct.new :model, :priority, :categories, :resolver
 
             def add_root(root_model, priority, categories: [], resolver: Resolver.new(root_model))
-                @root_models[root_model] = RootModel.new(root_model, priority, categories, resolver)
+                @root_models << RootModel.new(root_model, priority, categories, resolver)
             end
 
             # Refresh the model to match the current hierarchy that starts with
@@ -64,7 +64,7 @@ module MetaRuby
                 @items_metadata = Hash[self => Metadata.new([], [], Set.new)]
 
                 seen = Set.new
-                sorted_roots = @root_models.values.
+                sorted_roots = @root_models.
                     sort_by(&:priority).reverse
                 
                 sorted_roots.each do |root_model|
@@ -188,8 +188,13 @@ module MetaRuby
                     seen << m
 
                     register_model(m, categories, resolver)
-                    resolver.each_submodel(m) do |model|
-                        queue << model
+                    resolver.each_submodel(m) do |model, excluded|
+                        raise if model.kind_of?(String)
+                        if excluded
+                            seen << model
+                        else
+                            queue << model
+                        end
                     end
                 end
             end

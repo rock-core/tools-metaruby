@@ -10,16 +10,16 @@ module MetaRuby
                     Qt::Application.new([])
                 end
 
-                @models = (0...5).map { |i| flexmock }
+                @models = (0...5).map { |i| flexmock(excluded: false) }
                 @root   = flexmock
-                @resolver = Class.new do
+                @resolver_class = Class.new do
                     def initialize(root, models)
                         @root, @models = root, models
                     end
 
                     def each_submodel(model)
                         if model == @root
-                            @models.each { |m| yield(m) }
+                            @models.each { |m| yield(m, m.excluded) }
                         end
                     end
 
@@ -35,8 +35,9 @@ module MetaRuby
                             end
                         end
                     end
-                end.new(@root, @models)
+                end
 
+                @resolver = @resolver_class.new(@root, @models)
                 @model_hierarchy = ModelHierarchy.new
                 @model_hierarchy.add_root(@root, 0, categories: ['Test', 'Other'], resolver: @resolver)
                 @model_hierarchy.reload
@@ -55,7 +56,7 @@ module MetaRuby
             end
 
             it "handles something that looks like a namespace but is actually a model" do
-                even = flexmock
+                even = flexmock(excluded: false)
                 @models << even
                 flexmock(@resolver).should_receive(:split_name).with(even).and_return(['Even'])
                 flexmock(@resolver).should_receive(:split_name).pass_thru
@@ -70,6 +71,28 @@ module MetaRuby
                 assert_equal ",Test,Other,;,Even,;,0,2,4,", even_root.data(Qt::UserRole).to_string
                 item0 = even_root.child(0)
                 assert_equal ",Test,Other,;,Even,;,0,", item0.data(Qt::UserRole).to_string
+            end
+
+            it "does not include excluded models" do
+                @models << flexmock(excluded: true)
+                @model_hierarchy.reload
+                odd_root = @model_hierarchy.find_items("Odd").first
+                assert_nil odd_root.child(2)
+            end
+            it "does not process in following resolvers models excluded by previous resolvers" do
+                @models << flexmock(excluded: true)
+                new_root = flexmock
+                new_resolver = Class.new(@resolver_class) do
+                    def each_submodel(model)
+                        if model == @root
+                            @models.each { |m| yield(m, false) }
+                        end
+                    end
+                end.new(new_root, @models)
+                @model_hierarchy.add_root(@root, -1, categories: [], resolver: new_resolver)
+                @model_hierarchy.reload
+                odd_root = @model_hierarchy.find_items("Odd").first
+                assert_nil odd_root.child(2)
             end
 
             describe "#find_model_from_index" do
