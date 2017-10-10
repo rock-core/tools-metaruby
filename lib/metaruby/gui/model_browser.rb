@@ -201,19 +201,27 @@ module MetaRuby
             #
             # @param [Page] page the new page object
             def page=(page)
-                manager.page = page
-                page.connect(SIGNAL('linkClicked(const QUrl&)')) do |url|
-                    if url.scheme == "link"
-                        path = url.path
-                        path = path.split('/')[1..-1]
-                        select_by_path(*path)
-                    end
+                if @page
+                    disconnect(@page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
+                    disconnect(@page, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
+                    disconnect(@page, SIGNAL('fileOpenClicked(const QUrl&)'), self, SLOT('fileOpenClicked(const QUrl&)'))
                 end
+                manager.page = page
+                connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
                 connect(page, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
                 connect(page, SIGNAL('fileOpenClicked(const QUrl&)'), self, SLOT('fileOpenClicked(const QUrl&)'))
                 connect(manager, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
                 @page = page
             end
+
+            def linkClicked(url)
+                if url.scheme == "link"
+                    path = url.path
+                    path = path.split('/')[1..-1]
+                    select_by_path(*path)
+                end
+            end
+            slots 'linkClicked(const QUrl&)'
 
             signals 'fileOpenClicked(const QUrl&)'
 
