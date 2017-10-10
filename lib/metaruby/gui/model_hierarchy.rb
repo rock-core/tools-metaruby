@@ -24,13 +24,19 @@ module MetaRuby
             end
 
             class Resolver
+                def initialize(root_model)
+                    @root_model = root_model
+                end
+
                 def split_name(model)
                     model.name.split('::')
                 end
 
                 def each_submodel(model)
-                    model.each_submodel do |m|
-                        yield(m) if m.name
+                    if model == @root_model
+                        model.each_submodel do |m|
+                            yield(m) if m.name
+                        end
                     end
                 end
             end
@@ -42,7 +48,7 @@ module MetaRuby
 
             RootModel = Struct.new :model, :priority, :categories, :resolver
 
-            def add_root(root_model, priority, categories: [], resolver: Resolver.new)
+            def add_root(root_model, priority, categories: [], resolver: Resolver.new(root_model))
                 @root_models[root_model] = RootModel.new(root_model, priority, categories, resolver)
             end
 
