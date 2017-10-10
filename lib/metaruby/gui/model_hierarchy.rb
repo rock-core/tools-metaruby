@@ -29,7 +29,12 @@ module MetaRuby
                 end
 
                 def split_name(model)
-                    model.name.split('::')
+                    name = model.name
+                    split = model.name.split('::')
+                    if name.start_with?('::')
+                        split[1..-1]
+                    else split
+                    end
                 end
 
                 def each_submodel(model)
