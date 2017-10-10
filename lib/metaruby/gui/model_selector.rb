@@ -18,11 +18,14 @@ module MetaRuby
             # @return [Qt::SortFilterProxyModel]
             attr_reader :model_filter
 
-            # (see {RubyConstantsItemModel#type_info)
+            # A mapping from a root model and the user-visible name for this
+            # root
+            #
+            # @return [Hash<Object,String>]
             attr_reader :type_info
 
             # The Qt item model that represents the object hierarchy
-            # @return [RubyConstantsItemModel]
+            # @return [ModelHierarchy]
             attr_reader :browser_model
 
             # @return [Qt::PushButton] a button allowing to filter models by
@@ -41,9 +44,7 @@ module MetaRuby
                 super
 
                 @type_info = Hash.new
-                @browser_model = RubyConstantsItemModel.new(type_info) do |mod|
-                    model?(mod)
-                end
+                @browser_model = ModelHierarchy.new
                 @type_filters = Hash.new
 
                 layout = Qt::VBoxLayout.new(self)
@@ -65,12 +66,13 @@ module MetaRuby
             #   objects of this type
             # @param [Integer] priority if an object's ancestry matches multiple
             #   types, only the ones of the highest priority will be retained
-            def register_type(model_base, name, priority = 0)
-                type_info[model_base] = RubyConstantsItemModel::TypeInfo.new(name, priority)
+            def register_type(root_model, name, priority = 0, categories: [], resolver: ModelHierarchy::Resolver.new)
+                @browser_model.add_root(root_model, priority, categories: categories, resolver: resolver)
+                type_info[root_model] = name
                 action = Qt::Action.new(name, self)
                 action.checkable = true
                 action.checked = true
-                type_filters[model_base] = action
+                type_filters[root_model] = action
                 btn_type_filter_menu.add_action(action)
                 connect(action, SIGNAL('triggered()')) do
                     update_model_filter
@@ -89,10 +91,10 @@ module MetaRuby
             def update_model_filter
                 type_rx = type_filters.map do |model_base, act|
                     if act.checked?
-                        type_info[model_base].name
+                        type_info[model_base]
                     end
                 end
-                type_rx = type_rx.compact.join("|")
+                type_rx = type_rx.compact.join(",|,")
 
                 model_filter.filter_role = Qt::UserRole # this contains the keywords (ancestry and/or name)
                 # This workaround a problem that I did not have time to
@@ -104,7 +106,11 @@ module MetaRuby
                 # The pattern has to match every element in the hierarchy. We
                 # achieve this by making the suffix part optional
                 name_rx = filter_box.text.downcase.gsub(/:+/, "/")
-                model_filter.filter_reg_exp = Qt::RegExp.new("(#{type_rx}).*;.*#{name_rx}")
+                name_rx = '[^;]*,' + name_rx.split('/').join(",[^;]*;[^;]*,") + ',[^;]*'
+                regexp = Qt::RegExp.new("(,#{type_rx},)[^;]*;#{name_rx}")
+                regexp.case_sensitivity = Qt::CaseInsensitive
+                model_filter.filter_reg_exp = regexp
+                model_filter.invalidate
                 auto_open
             end
 
@@ -135,20 +141,12 @@ module MetaRuby
                 end
             end
 
-            # Tests if an object if a model
-            def model?(obj)
-                type_info.any? do |model_base, _|
-                    obj.kind_of?(model_base) ||
-                        (obj.kind_of?(Module) && obj <= model_base)
-                end
-            end
-
             class ModelPathCompleter < Qt::Completer
                 def splitPath(path)
                     path.split('/')
                 end
                 def pathFromIndex(index)
-                    index.data(Qt::UserRole).split(";").last
+                    index.data(Qt::UserRole).to_string.split(";").last
                 end
             end
 
@@ -187,10 +185,10 @@ module MetaRuby
                 @model_list = Qt::TreeView.new(self)
                 @model_filter = Qt::SortFilterProxyModel.new
                 model_filter.filter_case_sensitivity = Qt::CaseInsensitive
-                model_filter.dynamic_sort_filter = true
                 model_filter.filter_role = Qt::UserRole
-                model_list.model = model_filter
+                model_filter.dynamic_sort_filter = true
                 model_filter.source_model = browser_model
+                model_list.model = model_filter
 
                 @filter_box = Qt::LineEdit.new(self)
                 filter_box.connect(SIGNAL('textChanged(QString)')) do |text|
@@ -207,9 +205,8 @@ module MetaRuby
 
                 model_list.selection_model.connect(SIGNAL('currentChanged(const QModelIndex&, const QModelIndex&)')) do |index, _|
                     index = model_filter.map_to_source(index)
-                    mod = browser_model.info_from_index(index)
-                    if model?(mod.this)
-                        emit model_selected(Qt::Variant.from_ruby(mod.this, mod.this))
+                    if model = browser_model.find_model_from_index(index)
+                        emit model_selected(Qt::Variant.from_ruby(model, model))
                     end
                 end
             end

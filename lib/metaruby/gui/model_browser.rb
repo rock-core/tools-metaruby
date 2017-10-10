@@ -151,9 +151,9 @@ module MetaRuby
             #   models might be submodels of various types at the same time (as
             #   e.g. when both a model and its supermodel are registered here).
             #   The one with the highest priority will be used.
-            def register_type(type, rendering_class, name, priority = 0)
-                model_selector.register_type(type, name, priority)
-                manager.register_type(type, rendering_class)
+            def register_type(root_model, rendering_class, name, priority = 0, categories: [], resolver: ModelHierarchy::Resolver.new)
+                model_selector.register_type(root_model, name, priority, categories: categories, resolver: resolver)
+                manager.register_type(root_model, rendering_class)
             end
 
             # Sets up the widgets that form the central part of the browser
