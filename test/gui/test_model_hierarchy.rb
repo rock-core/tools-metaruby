@@ -95,6 +95,15 @@ module MetaRuby
                 assert_nil odd_root.child(2)
             end
 
+            it "returns the resolver that found a given model" do
+                assert_equal @resolver,
+                    @model_hierarchy.find_resolver_from_model(@models[0])
+            end
+
+            it "returns nil if given an object that is not a model" do
+                assert_nil @model_hierarchy.find_resolver_from_model(Object.new)
+            end
+
             describe "#find_model_from_index" do
                 it "returns the model that matches a ModelIndex" do
                     even_root = @model_hierarchy.find_items("Even").first

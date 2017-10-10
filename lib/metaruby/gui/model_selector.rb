@@ -85,6 +85,11 @@ module MetaRuby
                 update_model_filter
             end
 
+            # (see ModelHierarchy#find_resolver_from_model)
+            def find_resolver_from_model(model)
+                @browser_model.find_resolver_from_model(model)
+            end
+
             # @api private
             #
             # Update {#model_filter} to match the current filter setup

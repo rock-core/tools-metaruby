@@ -57,14 +57,19 @@ module MetaRuby
             # A Page object tunes to create URIs for objects that are suitable
             # for {#model_selector}
             class Page < HTML::Page
+                def initialize(model_selector, display_page)
+                    super(display_page)
+                    @model_selector = model_selector
+                end
+
                 # Overloaded from {HTML::Page} to resolve object paths (in the
                 #   constant hierarchy, e.g. A::B::C) into the corresponding
                 #   path expected by {#model_selector} (e.g. /A/B/C)
                 def uri_for(object)
-                    if object.respond_to?(:name) && (obj_name = object.name) && (obj_name =~ /^[\w:]+$/)
-                        path = obj_name.split("::")
-                        "/" + path.join("/")
-                    else super
+                    if resolver = @model_selector.find_resolver_from_model(object)
+                        "/" + resolver.split_name(object).join("/")
+                    else
+                        super
                     end
                 end
             end
@@ -152,7 +157,9 @@ module MetaRuby
             #   e.g. when both a model and its supermodel are registered here).
             #   The one with the highest priority will be used.
             def register_type(root_model, rendering_class, name, priority = 0, categories: [], resolver: ModelHierarchy::Resolver.new)
-                model_selector.register_type(root_model, name, priority, categories: categories, resolver: resolver)
+                model_selector.register_type(
+                    root_model, name, priority,
+                    categories: categories, resolver: resolver)
                 manager.register_type(root_model, rendering_class)
             end
 
@@ -181,7 +188,7 @@ module MetaRuby
                 end
                 splitter.add_widget(display)
                 splitter.set_stretch_factor(1, 2)
-                self.page = Page.new(display.page)
+                self.page = Page.new(@model_selector, display.page)
 
                 model_selector.connect(SIGNAL('model_selected(QVariant)')) do |mod|
                     mod = mod.to_ruby

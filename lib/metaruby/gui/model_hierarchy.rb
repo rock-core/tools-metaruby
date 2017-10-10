@@ -46,6 +46,14 @@ module MetaRuby
                 @root_models = Array.new
             end
 
+            # Find the resolver object that has been responsible for a given
+            # object's discovery
+            #
+            # @return [Object,nil]
+            def find_resolver_from_model(model)
+                @resolver_from_model[model]
+            end
+
             RootModel = Struct.new :model, :priority, :categories, :resolver
 
             def add_root(root_model, priority, categories: [], resolver: Resolver.new(root_model))
@@ -62,13 +70,17 @@ module MetaRuby
                 @models_to_items = Hash.new
                 @names_to_item = Hash.new
                 @items_metadata = Hash[self => Metadata.new([], [], Set.new)]
+                @resolver_from_model = Hash.new
 
                 seen = Set.new
                 sorted_roots = @root_models.
                     sort_by(&:priority).reverse
                 
                 sorted_roots.each do |root_model|
-                    discover_model_hierarchy(root_model.model, root_model.categories, root_model.resolver, seen)
+                    models = discover_model_hierarchy(root_model.model, root_model.categories, root_model.resolver, seen)
+                    models.each do |m|
+                        @resolver_from_model[m] = root_model.resolver
+                    end
                 end
                 
                 rowCount.times do |row|
@@ -179,6 +191,7 @@ module MetaRuby
             #
             # Register a model and its whole submodels hierarchy
             def discover_model_hierarchy(root_model, categories, resolver, seen)
+                discovered = Array.new
                 queue = [root_model]
                 categories = categories.to_set
 
@@ -186,6 +199,7 @@ module MetaRuby
                     m = queue.shift
                     next if seen.include?(m)
                     seen << m
+                    discovered << m
 
                     register_model(m, categories, resolver)
                     resolver.each_submodel(m) do |model, excluded|
@@ -197,6 +211,7 @@ module MetaRuby
                         end
                     end
                 end
+                discovered
             end
 
             # @api private
