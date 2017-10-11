@@ -59,6 +59,13 @@ module MetaRuby
                 @resolver_from_model[model]
             end
 
+            # Returns the path to the given model or nil if it is not registered
+            def find_path_from_model(model)
+                if resolver = find_resolver_from_model(model)
+                    resolver.split_name(model)
+                end
+            end
+
             RootModel = Struct.new :model, :priority, :categories, :resolver
 
             def add_root(root_model, priority, categories: [], resolver: Resolver.new(root_model))

@@ -254,16 +254,16 @@ module MetaRuby
             end
             slots 'update_exceptions()'
 
-            # (see ModelSelector#select_by_module)
+            # (see ModelSelector#select_by_model)
             def select_by_path(*path)
                 if model_selector.select_by_path(*path)
                     push_to_history(path)
                 end
             end
 
-            # (see ModelSelector#select_by_module)
-            def select_by_module(model)
-                if model_selector.select_by_module(model)
+            # (see ModelSelector#select_by_model)
+            def select_by_model(model)
+                if model_selector.select_by_model(model)
                     push_to_history(model)
                 end
             end
@@ -304,7 +304,7 @@ module MetaRuby
             def select_by_history_element(h)
                 if h.respond_to?(:to_ary)
                     select_by_path(*h)
-                else select_by_module(h)
+                else select_by_model(h)
                 end
             end
 

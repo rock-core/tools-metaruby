@@ -243,19 +243,15 @@ module MetaRuby
 
             # Reload the object model, keeping the current selection if possible
             def reload
-                if current = current_selection
-                    current_module = current.this
-                    current_path = []
-                    while current
-                        current_path.unshift current.name
-                        current = current.parent
-                    end
+                if current_model = current_selection
+                    current_path = @browser_model.find_path_from_model(current_model)
                 end
 
                 browser_model.reload
-
-                if current_path && !select_by_path(*current_path)
-                    select_by_module(current_module)
+                if current_path
+                    select_by_path(*current_path)
+                elsif current_model
+                    select_by_model(current_model)
                 end
             end
 
@@ -311,7 +307,7 @@ module MetaRuby
             #
             # @return [Boolean] true if the path resolved to something known,
             #   and false otherwise
-            def select_by_module(model)
+            def select_by_model(model)
                 if index = browser_model.find_index_by_model(model)
                     index = map_index_from_source(index)
                     model_list.current_index = index
