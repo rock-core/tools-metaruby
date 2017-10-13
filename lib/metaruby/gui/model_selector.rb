@@ -217,6 +217,7 @@ module MetaRuby
                 model_filter.filter_role = Qt::UserRole
                 model_filter.dynamic_sort_filter = true
                 model_filter.source_model = browser_model
+                model_filter.sort(0)
                 model_list.model = model_filter
 
                 @filter_box = Qt::LineEdit.new(self)
