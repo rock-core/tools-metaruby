@@ -281,10 +281,10 @@ module MetaRuby
                 if !index
                     return
                 elsif !index.valid?
-                    if !options[:reset_filter]
+                    if !reset_filter
                         return index
                     end
-                    reset_filter
+                    self.reset_filter
                     model_filter.map_from_source(source_index)
                 else index
                 end
