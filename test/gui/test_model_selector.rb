@@ -94,6 +94,18 @@ module MetaRuby
                     assert_equal ['0'], even_children.
                         map { |item, _index| item.text }
                 end
+
+                it "filters starting at an arbitrary place in the hierarchy" do
+                    @model_selector.filter_box.text = "0"
+                    @model_selector.update_model_filter
+                    assert_equal 1, filter_row_count
+                    model_items_from_filter
+                    even_root, even_index = model_items_from_filter.first
+                    assert_equal "Even", even_root.text
+                    even_children = model_items_from_filter(even_index)
+                    assert_equal ['0'], even_children.
+                        map { |item, _index| item.text }
+                end
             end
         end
     end

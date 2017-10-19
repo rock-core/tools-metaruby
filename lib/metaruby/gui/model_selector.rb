@@ -112,7 +112,7 @@ module MetaRuby
                 # achieve this by making the suffix part optional
                 name_rx = filter_box.text.downcase.gsub(/:+/, "/")
                 name_rx = '[^;]*,[^,]*' + name_rx.split('/').join("[^,]*,[^;]*;[^;]*,") + '[^,]*,[^;]*'
-                regexp = Qt::RegExp.new("(,#{type_rx},)[^;]*;#{name_rx}")
+                regexp = Qt::RegExp.new("(,#{type_rx},)[^;]*;([^;]*;)*#{name_rx}")
                 regexp.case_sensitivity = Qt::CaseInsensitive
                 model_filter.filter_reg_exp = regexp
                 model_filter.invalidate
