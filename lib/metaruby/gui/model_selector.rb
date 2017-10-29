@@ -323,7 +323,7 @@ module MetaRuby
                 index = model_list.selection_model.current_index
                 if index.valid?
                     index = model_filter.map_to_source(index)
-                    browser_model.info_from_index(index)
+                    browser_model.find_model_from_index(index)
                 end
             end
 
