@@ -18,11 +18,14 @@ module MetaRuby
             # @return [Qt::SortFilterProxyModel]
             attr_reader :model_filter
 
-            # (see {RubyConstantsItemModel#type_info)
+            # A mapping from a root model and the user-visible name for this
+            # root
+            #
+            # @return [Hash<Object,String>]
             attr_reader :type_info
 
             # The Qt item model that represents the object hierarchy
-            # @return [RubyConstantsItemModel]
+            # @return [ModelHierarchy]
             attr_reader :browser_model
 
             # @return [Qt::PushButton] a button allowing to filter models by
@@ -41,9 +44,7 @@ module MetaRuby
                 super
 
                 @type_info = Hash.new
-                @browser_model = RubyConstantsItemModel.new(type_info) do |mod|
-                    model?(mod)
-                end
+                @browser_model = ModelHierarchy.new
                 @type_filters = Hash.new
 
                 layout = Qt::VBoxLayout.new(self)
@@ -65,12 +66,13 @@ module MetaRuby
             #   objects of this type
             # @param [Integer] priority if an object's ancestry matches multiple
             #   types, only the ones of the highest priority will be retained
-            def register_type(model_base, name, priority = 0)
-                type_info[model_base] = RubyConstantsItemModel::TypeInfo.new(name, priority)
+            def register_type(root_model, name, priority = 0, categories: [], resolver: ModelHierarchy::Resolver.new)
+                @browser_model.add_root(root_model, priority, categories: categories, resolver: resolver)
+                type_info[root_model] = name
                 action = Qt::Action.new(name, self)
                 action.checkable = true
                 action.checked = true
-                type_filters[model_base] = action
+                type_filters[root_model] = action
                 btn_type_filter_menu.add_action(action)
                 connect(action, SIGNAL('triggered()')) do
                     update_model_filter
@@ -79,8 +81,13 @@ module MetaRuby
 
             # Update the view, reloading the underlying model
             def update
-                update_model_filter
                 reload
+                update_model_filter
+            end
+
+            # (see ModelHierarchy#find_resolver_from_model)
+            def find_resolver_from_model(model)
+                @browser_model.find_resolver_from_model(model)
             end
 
             # @api private
@@ -89,10 +96,10 @@ module MetaRuby
             def update_model_filter
                 type_rx = type_filters.map do |model_base, act|
                     if act.checked?
-                        type_info[model_base].name
+                        type_info[model_base]
                     end
                 end
-                type_rx = type_rx.compact.join("|")
+                type_rx = type_rx.compact.join(",|,")
 
                 model_filter.filter_role = Qt::UserRole # this contains the keywords (ancestry and/or name)
                 # This workaround a problem that I did not have time to
@@ -104,8 +111,36 @@ module MetaRuby
                 # The pattern has to match every element in the hierarchy. We
                 # achieve this by making the suffix part optional
                 name_rx = filter_box.text.downcase.gsub(/:+/, "/")
-                model_filter.filter_reg_exp = Qt::RegExp.new("(#{type_rx}).*;.*#{name_rx}")
+                name_rx = '[^;]*,[^,]*' + name_rx.split('/').join("[^,]*,[^;]*;[^;]*,") + '[^,]*,[^;]*'
+                regexp = Qt::RegExp.new("(,#{type_rx},)[^;]*;([^;]*;)*#{name_rx}")
+                regexp.case_sensitivity = Qt::CaseInsensitive
+                model_filter.filter_reg_exp = regexp
+                model_filter.invalidate
                 auto_open
+            end
+
+            def filter_row_count(parent = Qt::ModelIndex.new)
+                model_filter.row_count(parent)
+            end
+
+            def model_items_from_filter(parent = Qt::ModelIndex.new)
+                (0...filter_row_count(parent)).map do |i|
+                    model_item_from_filter_row(i, parent)
+                end
+            end
+
+            def model_item_from_filter_row(row, parent = Qt::ModelIndex.new)
+                filter_index = model_filter.index(row, 0, parent)
+                model_index  = model_filter.map_to_source(filter_index)
+                return browser_model.item_from_index(model_index), filter_index
+            end
+
+            def dump_filtered_item_model(parent = Qt::ModelIndex.new, indent = "")
+                model_items_from_filter(parent).each_with_index do |(model_item, filter_index), i|
+                    data = model_item.data(Qt::UserRole).to_string
+                    puts "#{indent}[#{i}] #{model_item.text} #{data}"
+                    dump_filtered_item_model(filter_index, indent + "  ")
+                end
             end
 
             # Auto-open in the current state
@@ -135,20 +170,12 @@ module MetaRuby
                 end
             end
 
-            # Tests if an object if a model
-            def model?(obj)
-                type_info.any? do |model_base, _|
-                    obj.kind_of?(model_base) ||
-                        (obj.kind_of?(Module) && obj <= model_base)
-                end
-            end
-
             class ModelPathCompleter < Qt::Completer
                 def splitPath(path)
                     path.split('/')
                 end
                 def pathFromIndex(index)
-                    index.data(Qt::UserRole).split(";").last
+                    index.data(Qt::UserRole).to_string.split(";").last
                 end
             end
 
@@ -187,10 +214,11 @@ module MetaRuby
                 @model_list = Qt::TreeView.new(self)
                 @model_filter = Qt::SortFilterProxyModel.new
                 model_filter.filter_case_sensitivity = Qt::CaseInsensitive
-                model_filter.dynamic_sort_filter = true
                 model_filter.filter_role = Qt::UserRole
-                model_list.model = model_filter
+                model_filter.dynamic_sort_filter = true
                 model_filter.source_model = browser_model
+                model_filter.sort(0)
+                model_list.model = model_filter
 
                 @filter_box = Qt::LineEdit.new(self)
                 filter_box.connect(SIGNAL('textChanged(QString)')) do |text|
@@ -207,9 +235,8 @@ module MetaRuby
 
                 model_list.selection_model.connect(SIGNAL('currentChanged(const QModelIndex&, const QModelIndex&)')) do |index, _|
                     index = model_filter.map_to_source(index)
-                    mod = browser_model.info_from_index(index)
-                    if model?(mod.this)
-                        emit model_selected(Qt::Variant.from_ruby(mod.this, mod.this))
+                    if model = browser_model.find_model_from_index(index)
+                        emit model_selected(Qt::Variant.from_ruby(model, model))
                     end
                 end
             end
@@ -217,19 +244,15 @@ module MetaRuby
 
             # Reload the object model, keeping the current selection if possible
             def reload
-                if current = current_selection
-                    current_module = current.this
-                    current_path = []
-                    while current
-                        current_path.unshift current.name
-                        current = current.parent
-                    end
+                if current_model = current_selection
+                    current_path = @browser_model.find_path_from_model(current_model)
                 end
 
                 browser_model.reload
-
-                if current_path && !select_by_path(*current_path)
-                    select_by_module(current_module)
+                if current_path
+                    select_by_path(*current_path)
+                elsif current_model
+                    select_by_model(current_model)
                 end
             end
 
@@ -258,10 +281,10 @@ module MetaRuby
                 if !index
                     return
                 elsif !index.valid?
-                    if !options[:reset_filter]
+                    if !reset_filter
                         return index
                     end
-                    reset_filter
+                    self.reset_filter
                     model_filter.map_from_source(source_index)
                 else index
                 end
@@ -285,7 +308,7 @@ module MetaRuby
             #
             # @return [Boolean] true if the path resolved to something known,
             #   and false otherwise
-            def select_by_module(model)
+            def select_by_model(model)
                 if index = browser_model.find_index_by_model(model)
                     index = map_index_from_source(index)
                     model_list.current_index = index
@@ -300,7 +323,7 @@ module MetaRuby
                 index = model_list.selection_model.current_index
                 if index.valid?
                     index = model_filter.map_to_source(index)
-                    browser_model.info_from_index(index)
+                    browser_model.find_model_from_index(index)
                 end
             end
 

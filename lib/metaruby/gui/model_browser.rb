@@ -57,14 +57,19 @@ module MetaRuby
             # A Page object tunes to create URIs for objects that are suitable
             # for {#model_selector}
             class Page < HTML::Page
+                def initialize(model_selector, display_page)
+                    super(display_page)
+                    @model_selector = model_selector
+                end
+
                 # Overloaded from {HTML::Page} to resolve object paths (in the
                 #   constant hierarchy, e.g. A::B::C) into the corresponding
                 #   path expected by {#model_selector} (e.g. /A/B/C)
                 def uri_for(object)
-                    if object.respond_to?(:name) && (obj_name = object.name) && (obj_name =~ /^[\w:]+$/)
-                        path = obj_name.split("::")
-                        "/" + path.join("/")
-                    else super
+                    if resolver = @model_selector.find_resolver_from_model(object)
+                        "/" + resolver.split_name(object).join("/")
+                    else
+                        super
                     end
                 end
             end
@@ -151,9 +156,11 @@ module MetaRuby
             #   models might be submodels of various types at the same time (as
             #   e.g. when both a model and its supermodel are registered here).
             #   The one with the highest priority will be used.
-            def register_type(type, rendering_class, name, priority = 0)
-                model_selector.register_type(type, name, priority)
-                manager.register_type(type, rendering_class)
+            def register_type(root_model, rendering_class, name, priority = 0, categories: [], resolver: ModelHierarchy::Resolver.new)
+                model_selector.register_type(
+                    root_model, name, priority,
+                    categories: categories, resolver: resolver)
+                manager.register_type(root_model, rendering_class)
             end
 
             # Sets up the widgets that form the central part of the browser
@@ -181,7 +188,7 @@ module MetaRuby
                 end
                 splitter.add_widget(display)
                 splitter.set_stretch_factor(1, 2)
-                self.page = Page.new(display.page)
+                self.page = Page.new(@model_selector, display.page)
 
                 model_selector.connect(SIGNAL('model_selected(QVariant)')) do |mod|
                     mod = mod.to_ruby
@@ -194,19 +201,27 @@ module MetaRuby
             #
             # @param [Page] page the new page object
             def page=(page)
-                manager.page = page
-                page.connect(SIGNAL('linkClicked(const QUrl&)')) do |url|
-                    if url.scheme == "link"
-                        path = url.path
-                        path = path.split('/')[1..-1]
-                        select_by_path(*path)
-                    end
+                if @page
+                    disconnect(@page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
+                    disconnect(@page, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
+                    disconnect(@page, SIGNAL('fileOpenClicked(const QUrl&)'), self, SLOT('fileOpenClicked(const QUrl&)'))
                 end
+                manager.page = page
+                connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
                 connect(page, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
                 connect(page, SIGNAL('fileOpenClicked(const QUrl&)'), self, SLOT('fileOpenClicked(const QUrl&)'))
                 connect(manager, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
                 @page = page
             end
+
+            def linkClicked(url)
+                if url.scheme == "link"
+                    path = url.path
+                    path = path.split('/')[1..-1]
+                    select_by_path(*path)
+                end
+            end
+            slots 'linkClicked(const QUrl&)'
 
             signals 'fileOpenClicked(const QUrl&)'
 
@@ -239,16 +254,16 @@ module MetaRuby
             end
             slots 'update_exceptions()'
 
-            # (see ModelSelector#select_by_module)
+            # (see ModelSelector#select_by_model)
             def select_by_path(*path)
                 if model_selector.select_by_path(*path)
                     push_to_history(path)
                 end
             end
 
-            # (see ModelSelector#select_by_module)
-            def select_by_module(model)
-                if model_selector.select_by_module(model)
+            # (see ModelSelector#select_by_model)
+            def select_by_model(model)
+                if model_selector.select_by_model(model)
                     push_to_history(model)
                 end
             end
@@ -289,7 +304,7 @@ module MetaRuby
             def select_by_history_element(h)
                 if h.respond_to?(:to_ary)
                     select_by_path(*h)
-                else select_by_module(h)
+                else select_by_model(h)
                 end
             end
 
