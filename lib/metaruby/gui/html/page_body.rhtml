@@ -3,8 +3,5 @@
 <% end %>
 <% fragments.each do |fragment| %>
     <%= html_fragment(fragment, ressource_dir: ressource_dir) %>
-    <% if fragment.id %>
-        </div>
-    <% end %>
 <% end %>
 
