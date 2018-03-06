@@ -38,13 +38,32 @@ describe MetaRuby::ModelAsClass do
     end
 
     describe "#new_submodel" do
-        it "should call setup_submodel only once" do
-            mod = Module.new { include MetaRuby::ModelAsClass }
+        def setup_model(&block)
+            mod = Module.new do
+                include MetaRuby::ModelAsClass
+                class_eval(&block) if block
+            end
             klass = Class.new { extend mod }
+        end
+        it "should call setup_submodel only once" do
+            klass = setup_model
             flexmock(klass).should_receive(:setup_submodel).once
             klass.new_submodel
         end
-        it "should set permanent_model to false on the class" do
+        it "sets permanent_model to false on the class" do
+            klass = setup_model
+            refute klass.new_submodel.permanent_model?
+        end
+        it "makes its 'name' argument accessible to the setup_submodel method" do
+            klass = setup_model do
+                attr_accessor :setup_name
+                def setup_submodel(submodel, **options)
+                    submodel.setup_name = submodel.name
+                end
+            end
+            submodel = klass.new_submodel(name: 'test')
+            assert_equal 'test', submodel.name
+            assert_equal 'test', submodel.setup_name
         end
     end
 

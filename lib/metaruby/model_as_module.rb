@@ -121,10 +121,7 @@ module MetaRuby
         def new_submodel(name: nil, type: self.class, **submodel_options, &block)
             model = type.new
             model.extend ModelAsModule
-            model.name =
-                if name
-                    name.dup
-                end
+            model.name = name.dup if name
             model.definition_location = 
                 if MetaRuby.keep_definition_location?
                     caller_locations

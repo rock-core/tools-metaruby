@@ -70,13 +70,29 @@ describe MetaRuby::ModelAsModule do
     end
 
     describe "#new_submodel" do
-        it "should mark the model as non-permanent" do
+        it "marks the model as non-permanent" do
             root = Module.new do
                 extend MetaRuby::ModelAsModule
                 self.root = true
             end
             sub = root.new_submodel
             assert !sub.new_submodel.permanent_model?
+        end
+
+        it "makes its 'name' argument accessible to the setup_submodel method" do
+            meta = Class.new(Module) do
+                include MetaRuby::ModelAsModule
+                attr_accessor :setup_name
+                def setup_submodel(submodel, **options)
+                    submodel.setup_name = submodel.name
+                end
+            end
+            root = meta.new do
+                self.root = true
+            end
+            submodel = root.new_submodel(name: 'test')
+            assert_equal 'test', submodel.name
+            assert_equal 'test', submodel.setup_name
         end
     end
 
