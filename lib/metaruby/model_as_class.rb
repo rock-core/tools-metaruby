@@ -76,12 +76,11 @@ module MetaRuby
             Thread.current[FROM_NEW_SUBMODEL_TLS] = true
             model = self.class.new(self)
             model.permanent_model = false
+            model.instance_variable_set :@name, nil
+            model.name = name if name
             setup_submodel(model, **submodel_options, &block)
             if register
                 register_submodel(model)
-            end
-            if name
-                model.name = name
             end
             model
         end
@@ -93,11 +92,7 @@ module MetaRuby
 
         # Called at the end of the definition of a new submodel
         def setup_submodel(submodel, register: true, **options, &block)
-            submodel.instance_variable_set :@name, nil
-
-            if block_given?
-                submodel.apply_block(&block)
-            end
+            submodel.apply_block(&block) if block
         end
 
         # Registers submodels when a subclass is created
@@ -115,6 +110,7 @@ module MetaRuby
             subclass.permanent_model = subclass.accessible_by_name? &&
                 subclass.permanent_definition_context?
             if !from_new_submodel
+                subclass.instance_variable_set :@name, nil
                 setup_submodel(subclass)
                 register_submodel(subclass)
             end
