@@ -32,7 +32,7 @@ module MetaRuby::GUI
                 @object_id_to_object = Hash.new
                 @registered_exceptions = Array.new
             end
-            
+
             # (see RenderingManager#register_type)
             def register_type(type, rendering_class, render_options = Hash.new)
                 manager.register_type(type, rendering_class, render_options)
@@ -107,7 +107,7 @@ module MetaRuby::GUI
                     object = object_id_to_object[Integer($1)]
                     render_element(object)
                 else
-                    super
+                    emit linkClicked(url)
                 end
             end
             slots 'linkClickedHandler(const QUrl&)'
@@ -130,5 +130,3 @@ module MetaRuby::GUI
         end
     end
 end
-
-
