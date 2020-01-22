@@ -7,4 +7,7 @@
   <depend package="bundler" />
   <depend package="utilrb" />
   <depend package="kramdown" optional="1" />
+
+  <test_depend package="minitest" />
+  <test_depend package="flexmock" />
 </package>
