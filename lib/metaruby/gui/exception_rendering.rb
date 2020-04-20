@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module MetaRuby
     module GUI
         # Functionality to render exceptions in an HTML view
@@ -39,31 +41,17 @@ module MetaRuby
             end
 
             # Necessary header content
-            HEADER = <<-EOD
-            <link rel="stylesheet" href="file://#{File.join(RESSOURCES_DIR, 'exception_view.css')}" type="text/css" />
-            <script type="text/javascript" src="file://#{File.join(RESSOURCES_DIR, 'jquery.min.js')}"></script>
-            EOD
+            HEADER = <<~HTML
+                <link rel="stylesheet"
+                      href="file://#{File.join(RESSOURCES_DIR, 'exception_view.css')}"
+                      type="text/css" />
+                <script type="text/javascript"
+                        src="file://#{File.join(RESSOURCES_DIR, 'exception_view.js')}">
+                </script>
+            HTML
 
             # The scripts that are used by the other exception templates
-            SCRIPTS = <<-EOD
-            <script type="text/javascript">
-            $(document).ready(function () {
-                $(".backtrace").hide()
-                $("a.backtrace_toggle_filtered").click(function (event) {
-                        var eventId = $(this).attr("id");
-                        $("#backtrace_full_" + eventId).hide();
-                        $("#backtrace_filtered_" + eventId).toggle();
-                        event.preventDefault();
-                        });
-                $("a.backtrace_toggle_full").click(function (event) {
-                        var eventId = $(this).attr("id");
-                        $("#backtrace_full_" + eventId).toggle();
-                        $("#backtrace_filtered_" + eventId).hide();
-                        event.preventDefault();
-                        });
-            });
-            </script>
-            EOD
+            SCRIPTS = ""
 
             # Contents necessary in the <head> ... </head> section
             #
@@ -124,29 +112,39 @@ module MetaRuby
             end
 
             # Template used to render an exception that does not have backtrace
-            EXCEPTION_TEMPLATE_WITHOUT_BACKTRACE = <<-EOF
-            <div class="message" id="<%= id %>"><pre><%= message.join("\n") %></pre></div>
-            EOF
+            EXCEPTION_TEMPLATE_WITHOUT_BACKTRACE = <<~HTML
+                <div class="message" id="<%= id %>">
+                    <pre><%= message.join("\n") %></pre>
+                </div>
+            HTML
 
             # Template used to render an exception that does have a backtrace
-            EXCEPTION_TEMPLATE_WITH_BACKTRACE = <<-EOF
-            <div class="message" id="<%= id %>">
-                <pre><%= message.join("\n") %></pre>
-                <span class="backtrace_links">
-                    (show: <a class="backtrace_toggle_filtered" id="<%= id %>">filtered backtrace</a>,
-                           <a class=\"backtrace_toggle_full\" id="<%= id %>">full backtrace</a>)
-                </span>
-            </div>
-            <div class="backtrace_summary">
-                from <%= origin_file %>:<%= origin_line %>:in <%= HTML.escape_html(origin_method.to_s) %>
-            </div>
-            <div class="backtrace" id="backtrace_filtered_<%= id %>">
-                <%= render_backtrace(filtered_backtrace) %>
-            </div>
-            <div class="backtrace" id="backtrace_full_<%= id %>">
-                <%= render_backtrace(full_backtrace) %>
-            </div>
-            EOF
+            EXCEPTION_TEMPLATE_WITH_BACKTRACE = <<~HTML
+                <div class="message" id="<%= id %>">
+                    <pre><%= message.join("\n") %></pre>
+                    <span class="backtrace_links">
+                        (show: <a class="backtrace_toggle_filtered"
+                            id="<%= id %>"
+                            onclick="toggleFilteredBacktraceVisibility(this)">
+                            filtered backtrace
+                        </a>, <a class="backtrace_toggle_full"
+                            id="<%= id %>"
+                            onclick="toggleFullBacktraceVisibility(this)">
+                            full backtrace</a>)
+                    </span>
+                </div>
+                <div class="backtrace_summary">
+                    from <%= origin_file %>:<%= origin_line %>:in
+                    <%= HTML.escape_html(origin_method.to_s) %>
+                </div>
+                <div class="backtrace" id="backtrace_filtered_<%= id %>"
+                    <%= render_backtrace(filtered_backtrace) %>
+                </div>
+                <div class="backtrace" id="backtrace_full_<%= id %>"
+                     onclick="toggleFullBacktraceVisibility(this)">
+                    <%= render_backtrace(full_backtrace) %>
+                </div>
+            HTML
 
             # Filters the backtrace to remove framework parts that are not
             # relevant
@@ -238,13 +236,15 @@ module MetaRuby
             # @param [String] id the block ID
             # @return [String]
             def render_single_exception(e, id)
-                message = PP.pp(e, "").split("\n").
-                    map { |line| HTML.escape_html(line) }
+                message =
+                    PP.pp(e, "".dup)
+                      .split("\n")
+                      .map { |line| HTML.escape_html(line) }
 
                 full_backtrace, filtered_backtrace =
-                    parse_and_filter_backtrace(e.backtrace || Array.new)
+                    parse_and_filter_backtrace(e.backtrace || [])
 
-                if !full_backtrace.empty?
+                unless full_backtrace.empty?
                     origin_file, origin_line, origin_method =
                         filtered_backtrace.find { |file, _| user_file?(file) } ||
                         filtered_backtrace.first ||
