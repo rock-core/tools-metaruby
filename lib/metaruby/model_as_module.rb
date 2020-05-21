@@ -55,14 +55,17 @@ module MetaRuby
         #   #setup_submodel
         # @param [#call] block block passed to base_model's #setup_submodel
         # @return [Module] the new model
-        def self.create_and_register_submodel(namespace, name, base_model, *args, &block)
+        def self.create_and_register_submodel(
+            namespace, name, base_model, *args, **kw, &block
+        )
             ModelAsModule.validate_constant_name(name)
 
             if namespace.const_defined?(name, false)
                 model = namespace.const_get(name)
-                base_model.setup_submodel(model, *args, &block)
-            else 
-                namespace.const_set(name, model = base_model.new_submodel(*args, &block))
+                base_model.setup_submodel(model, *args, **kw, &block)
+            else
+                model = base_model.new_submodel(*args, **kw, &block)
+                namespace.const_set(name, model)
                 model.permanent_model = if !namespace.respond_to?(:permanent_model?)
                                             Registration.accessible_by_name?(namespace)
                                         else namespace.permanent_model?
@@ -122,23 +125,20 @@ module MetaRuby
             model = type.new
             model.extend ModelAsModule
             model.name = name.dup if name
-            model.definition_location = 
+            model.definition_location =
                 if MetaRuby.keep_definition_location?
                     caller_locations
-                else Array.new
+                else []
                 end
-            setup_submodel(model, submodel_options, &block)
+            setup_submodel(model, **submodel_options, &block)
             model
         end
 
         # Called when a new submodel has been created, on the newly created
         # submodel
-        def setup_submodel(submodel, options = Hash.new, &block)
+        def setup_submodel(submodel, **, &block)
             submodel.provides self
-
-            if block_given?
-                submodel.apply_block(&block)
-            end
+            submodel.apply_block(&block) if block_given?
         end
 
         # In the case of model-as-modules, we always deregister (regardless of
