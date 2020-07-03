@@ -55,8 +55,10 @@ module MetaRuby
             end
 
             # Resolves the given method using {#find_through_method_missing}
-            def method_missing(m, *args)
-                find_through_method_missing(m, args) || super
+            def method_missing(m, *args, **kw)
+                find_args = args
+                find_args += [kw] unless kw.empty?
+                find_through_method_missing(m, find_args) || super
             end
         end
 
@@ -113,7 +115,9 @@ module MetaRuby
                 if m.end_with?(s)
                     name = m[0, m.size - s.size]
                     if !args.empty?
-                        raise ArgumentError, "expected zero arguments to #{m}, got #{args.size}", caller(4)
+                        raise ArgumentError,
+                              "expected zero arguments to #{m}, got #{args.size}",
+                              caller(4)
                     else
                         return object.send(find_method_name, name)
                     end

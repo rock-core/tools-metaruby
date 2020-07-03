@@ -143,4 +143,62 @@ describe MetaRuby::DSLs do
             end
         end
     end
+    describe MetaRuby::DSLs::FindThroughMethodMissing do
+        before do
+            method_missing_m = Module.new do
+                def method_missing(m, *args, **kw)
+                    [m, args, kw]
+                end
+            end
+
+            @obj = Class.new do
+                attr_reader :state
+
+                def initialize
+                    @state = Object.new
+                end
+
+                def has_state?(name)
+                    name == "test"
+                end
+
+                def find_state(name)
+                    @state if name == "test"
+                end
+
+                def has_through_method_missing(m, args)
+                    MetaRuby::DSLs.find_through_method_missing(
+                        self, m, args, '_state' => :has_state?
+                    ) || super
+                end
+
+                def find_through_method_missing(m, args)
+                    MetaRuby::DSLs.find_through_method_missing(
+                        self, m, args, '_state' => "find_state"
+                    ) || super
+                end
+
+                include method_missing_m
+                include MetaRuby::DSLs::FindThroughMethodMissing
+            end.new
+        end
+
+        it "resolves the call through find_through_method_missing" do
+            assert_equal @obj.state, @obj.test_state
+        end
+        it "ensures that the call fails if arguments are given" do
+            assert_raises(ArgumentError) do
+                @obj.test_state("some arg")
+            end
+        end
+        it "ensures that the call fails if keyword arguments are given" do
+            assert_raises(ArgumentError) do
+                @obj.test_state(kw: 2)
+            end
+        end
+        it "calls super if the call does not match one of the registered patterns" do
+          assert_equal [:something_else, ["arg"], { kw: 42 }],
+                       @obj.something_else("arg", kw: 42)
+        end
+    end
 end
