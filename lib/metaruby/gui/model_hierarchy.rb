@@ -29,9 +29,10 @@ module MetaRuby
                 end
 
                 def split_name(model)
-                    name = model.name
-                    split = model.name.split('::')
-                    if name.start_with?('::')
+                    return unless (name = model.name)
+
+                    split = name.split("::")
+                    if name.start_with?("::")
                         split[1..-1]
                     else split
                     end
@@ -61,7 +62,9 @@ module MetaRuby
 
             # Returns the path to the given model or nil if it is not registered
             def find_path_from_model(model)
-                if resolver = find_resolver_from_model(model)
+                return unless model.name
+
+                if (resolver = find_resolver_from_model(model))
                     resolver.split_name(model)
                 end
             end
@@ -87,14 +90,14 @@ module MetaRuby
                 seen = Set.new
                 sorted_roots = @root_models.
                     sort_by(&:priority).reverse
-                
+
                 sorted_roots.each do |root_model|
                     models = discover_model_hierarchy(root_model.model, root_model.categories, root_model.resolver, seen)
                     models.each do |m|
                         @resolver_from_model[m] = root_model.resolver
                     end
                 end
-                
+
                 rowCount.times do |row|
                     compute_and_store_metadata(item(row))
                 end
