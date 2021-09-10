@@ -132,8 +132,9 @@ module MetaRuby
                 current_renderer&.disable
 
                 renderer.enable
-                renderer.render(object, **render_options.merge(push_options))
                 @current_renderer = renderer
+
+                renderer.render(object, **render_options.merge(push_options))
             end
 
             signals "updated()"
