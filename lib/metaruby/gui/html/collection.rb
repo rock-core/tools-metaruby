@@ -76,16 +76,16 @@ module MetaRuby::GUI
             # @param [Array<Element>] links the links that should be rendered
             # @param [Hash] push_options additional options that should be
             #   passed to page#render_list
-            def render_links(title, links, push_options = Hash.new)
+            def render_links(title, links, push_options = {})
                 links.each do |el|
                     object_id_to_object[el.object.object_id] = el.object
                 end
 
                 links = links.map do |el|
                     a_node = el.format % ["<a href=\"#{el.url}\">#{el.text}</a>"]
-                    [a_node, el.attributes || Hash.new]
+                    [a_node, el.attributes || {}]
                 end
-                page.render_list(title, links, push_options)
+                page.render_list(title, links, **push_options)
             end
 
             def render_all_elements(all, options)
@@ -118,7 +118,7 @@ module MetaRuby::GUI
                 registered_exceptions.clear
                 options = Hash[id: "#{namespace}/currently_rendered_element"].merge(options)
                 begin
-                    manager.render(object, options)
+                    manager.render(object, **options)
                 rescue ::Exception => e
                     registered_exceptions << e
                 end

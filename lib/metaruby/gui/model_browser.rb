@@ -190,7 +190,7 @@ module MetaRuby
                 splitter.set_stretch_factor(1, 2)
                 self.page = Page.new(@model_selector, display.page)
 
-                model_selector.connect(SIGNAL('model_selected(QVariant)')) do |mod|
+                model_selector.connect(SIGNAL("model_selected(QVariant)")) do |mod|
                     mod = mod.to_ruby
                     push_to_history(mod)
                     render_model(mod)
@@ -207,6 +207,7 @@ module MetaRuby
                     disconnect(@page, SIGNAL('fileOpenClicked(const QUrl&)'), self, SLOT('fileOpenClicked(const QUrl&)'))
                 end
                 manager.page = page
+
                 connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
                 connect(page, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
                 connect(page, SIGNAL('fileOpenClicked(const QUrl&)'), self, SLOT('fileOpenClicked(const QUrl&)'))
@@ -215,29 +216,29 @@ module MetaRuby
             end
 
             def linkClicked(url)
-                if url.scheme == "link"
-                    path = url.path
-                    path = path.split('/')[1..-1]
-                    select_by_path(*path)
-                end
-            end
-            slots 'linkClicked(const QUrl&)'
+                return unless url.scheme == "link"
 
-            signals 'fileOpenClicked(const QUrl&)'
+                path = url.path
+                path = path.split("/")[1..-1]
+                select_by_path(*path)
+            end
+            slots "linkClicked(const QUrl&)"
+
+            signals "fileOpenClicked(const QUrl&)"
 
             # Call to render the given model
             #
             # @param [Model] mod the model that should be rendered
             # @raise [ArgumentError] if there is no view available for the
             #   given model
-            def render_model(mod, options = Hash.new)
+            def render_model(mod, **options)
                 page.clear
                 @registered_exceptions.clear
                 reference_model, _ = manager.find_renderer(mod)
                 if mod
                     page.title = "#{mod.name} (#{reference_model.name})"
                     begin
-                        manager.render(mod, options)
+                        manager.render(mod, **options)
                     rescue ::Exception => e
                         @registered_exceptions << e
                     end

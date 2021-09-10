@@ -65,17 +65,20 @@ module MetaRuby::GUI
             def initialize(page)
                 super()
                 @page = page
-                @head = Array.new
-                @scripts = Array.new
+                @head = []
+                @scripts = []
                 @fragments = []
-                @templates = Hash.new
+                @templates = {}
                 @auto_id = 0
 
                 if defined?(Qt::WebPage) && page.kind_of?(Qt::WebPage)
                     page.link_delegation_policy = Qt::WebPage::DelegateAllLinks
-                    Qt::Object.connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('pageLinkClicked(const QUrl&)'))
+                    Qt::Object.connect(
+                        page, SIGNAL("linkClicked(const QUrl&)"),
+                        self, SLOT("pageLinkClicked(const QUrl&)")
+                    )
                 end
-                @object_uris = Hash.new
+                @object_uris = {}
             end
 
             # A page fragment (or section)
@@ -93,7 +96,7 @@ module MetaRuby::GUI
                 attr_reader :buttons
 
                 # Create a new fragment
-                def initialize(title, html, id: nil, buttons: Array.new)
+                def initialize(title, html, id: nil, buttons: [])
                     @title = title
                     @html = html
                     @id = id
@@ -327,8 +330,10 @@ module MetaRuby::GUI
                     MetaRuby.warn "MetaRuby::GUI::HTML::Page: ignored link #{url.toString}"
                 end
             end
-            slots 'pageLinkClicked(const QUrl&)'
-            signals 'linkClicked(const QUrl&)', 'buttonClicked(const QString&,bool)', 'fileOpenClicked(const QUrl&)'
+            slots "pageLinkClicked(const QUrl&)"
+            signals "linkClicked(const QUrl&)",
+                    "buttonClicked(const QString&,bool)",
+                    "fileOpenClicked(const QUrl&)"
 
             # Save the current state of the page, so that it can be restored by
             # calling {#restore}
@@ -364,25 +369,21 @@ module MetaRuby::GUI
             #
             # The added fragment is enclosed in a div block to allow for dynamic
             # replacement
-            # 
+            #
             # @option view_options [String] id the ID of the fragment. If given,
             #   and if an existing fragment with the same ID exists, the new
             #   fragment replaces the existing one, and the view is updated
             #   accordingly.
             #
             def push(title, html, id: auto_id, **view_options)
-                if id
+                if id && (fragment = fragments.find { |f| f.id == id })
                     # Check whether we should replace the existing content or
                     # push it new
-                    fragment = fragments.find do |fragment|
-                        fragment.id == id
-                    end
-                    if fragment
-                        fragment.html = html
-                        element = find_first_element("div##{fragment.id}")
-                        element.replace(html_fragment(fragment))
-                        return
-                    end
+
+                    fragment.html = html
+                    element = find_first_element("div##{fragment.id}")
+                    element.replace(html_fragment(fragment))
+                    return
                 end
 
                 fragments << Fragment.new(title, html, id: id, **view_options)
@@ -439,8 +440,9 @@ module MetaRuby::GUI
                 if filter && !id
                     raise ArgumentError, ":filter is true, but no :id has been given"
                 end
+
                 html = load_template(LIST_TEMPLATE).result(binding)
-                push(title, html, push_options.merge(id: id))
+                push(title, html, **push_options.merge(id: id))
             end
 
             signals 'updated()'
