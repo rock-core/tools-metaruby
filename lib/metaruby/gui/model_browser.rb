@@ -72,6 +72,18 @@ module MetaRuby
                         super
                     end
                 end
+
+                def populate_context_menu(menu, browser, _event)
+                    act = page.action(Qt::WebPage::Back)
+                    act.enabled = true
+                    menu.add_action act
+                    connect(act, SIGNAL(:triggered), browser, SLOT(:back))
+
+                    act = page.action(Qt::WebPage::Forward)
+                    act.enabled = true
+                    connect(act, SIGNAL(:triggered), browser, SLOT(:forward))
+                    menu.add_action act
+                end
             end
 
             def initialize(main = nil, exception_view: nil)
@@ -163,32 +175,39 @@ module MetaRuby
                 manager.register_type(root_model, rendering_class)
             end
 
+            module WebViewExtension
+                attr_accessor :metaruby_browser
+
+                def metaruby_page
+                    @metaruby_browser.page
+                end
+
+                def contextMenuEvent(event)
+                    menu = Qt::Menu.new(self)
+                    metaruby_page.populate_context_menu(menu, metaruby_browser, event)
+                    view = metaruby_browser.manager.current_renderer
+                    if view.respond_to?(:populate_context_menu)
+                        view.populate_context_menu(menu, metaruby_browser, event)
+                    end
+
+                    menu.popup(event.globalPos)
+                    event.accept
+                end
+            end
+
             # Sets up the widgets that form the central part of the browser
             def add_central_widgets(splitter)
                 @model_selector = ModelSelector.new
                 splitter.add_widget(model_selector)
 
                 # Create a central stacked layout
-                display = @display = Qt::WebView.new
-                browser = self
-                display.singleton_class.class_eval do
-                    define_method :contextMenuEvent do |event|
-                        menu = Qt::Menu.new(self)
-                        act = page.action(Qt::WebPage::Back)
-                        act.enabled = true
-                        menu.add_action act
-                        connect(act, SIGNAL(:triggered), browser, SLOT(:back))
-                        act = page.action(Qt::WebPage::Forward)
-                        act.enabled = true
-                        connect(act, SIGNAL(:triggered), browser, SLOT(:forward))
-                        menu.add_action act
-                        menu.popup(event.globalPos)
-                        event.accept
-                    end
-                end
+                @display = Qt::WebView.new
+                @display.extend WebViewExtension
+                @display.metaruby_browser = self
+                self.page = Page.new(@model_selector, display.page)
+
                 splitter.add_widget(display)
                 splitter.set_stretch_factor(1, 2)
-                self.page = Page.new(@model_selector, display.page)
 
                 model_selector.connect(SIGNAL("model_selected(QVariant)")) do |mod|
                     mod = mod.to_ruby

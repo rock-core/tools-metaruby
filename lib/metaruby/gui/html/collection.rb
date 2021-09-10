@@ -126,6 +126,13 @@ module MetaRuby::GUI
                 page.page.current_frame.scrollToAnchor(options[:id])
             end
 
+            def populate_context_menu(menu, metaruby_browser, event)
+                view = manager.current_renderer
+                return unless view.respond_to?(:populate_context_menu)
+
+                view.populate_context_menu(menu, metaruby_browser, event)
+            end
+
             signals :updated
         end
     end
