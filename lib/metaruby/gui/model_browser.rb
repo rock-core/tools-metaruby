@@ -57,6 +57,8 @@ module MetaRuby
             # A Page object tunes to create URIs for objects that are suitable
             # for {#model_selector}
             class Page < HTML::Page
+                attr_reader :model_selector
+
                 def initialize(model_selector, display_page)
                     super(display_page)
                     @model_selector = model_selector
