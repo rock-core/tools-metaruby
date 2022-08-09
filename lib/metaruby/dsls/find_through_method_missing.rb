@@ -111,16 +111,16 @@ module MetaRuby
 
             m = m.to_s
             suffix_match.each do |s, find_method_name|
-                if m.end_with?(s)
-                    name = m[0, m.size - s.size]
-                    if !args.empty?
-                        raise ArgumentError,
-                              "expected zero arguments to #{m}, got #{args.size}",
-                              caller(4)
-                    else
-                        return object.send(find_method_name, name)
-                    end
+                next unless m.end_with?(s)
+
+                name = m[0, m.size - s.size]
+                unless args.empty?
+                    raise ArgumentError,
+                          "expected zero arguments to #{m}, got #{args.size}",
+                          caller(4)
                 end
+
+                return object.send(find_method_name, name)
             end
             nil
         end
