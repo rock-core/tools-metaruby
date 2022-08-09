@@ -60,7 +60,7 @@ module MetaRuby
 
             # Register a new object type
             #
-            # @param [Module] model_base a module or class whose all objects of
+            # @param [Module] root_model a module or class whose all objects of
             #   this type have as superclass
             # @param [String] name the string that should be used to represent
             #   objects of this type

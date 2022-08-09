@@ -76,10 +76,9 @@ module MetaRuby
         #   be called
         # @param [Symbol] m the method name
         # @param [Array] args the method arguments
-        # @param [Array<String>] suffixes the accessor suffixes that should be
-        #   resolved. The last argument can be a hash, in which case the keys
-        #   are used as suffixes and the values are the name of the find methods
-        #   that should be used.
+        # @param [{String=>Symbol}] suffix_match the accessor suffixes that
+        #   should be resolved, associated with the find method that should be
+        #   used to resolve them
         # @return [Object,nil] an object if one of the listed suffixes matches
         #   the method name, or nil if the method name does not match the
         #   requested pattern.

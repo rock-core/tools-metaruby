@@ -158,8 +158,8 @@ module MetaRuby
             # modification to have any effect (i.e. for the newly registered
             # models to appear on the selector)
             #
-            # @param [Model] type the base model class for the models that are
-            #   considered here
+            # @param [Model] root_model the base model class for the models that
+            #   are considered here
             # @param [Class] rendering_class a class from which a relevant
             #   rendering object can be created. The generated instances must
             #   follow the rules described in the documentation of
