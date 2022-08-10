@@ -63,13 +63,16 @@ module MetaRuby
             # Changes on which page this rendering manager should act
             def page=(page)
                 return if @page == page
+
                 @page = page
-                @available_renderers = available_renderers.map_value do |key, (value, render_options)|
-                    new_render = value.class.new(page)
-                    disconnect(value, SIGNAL('updated()'))
-                    connect(new_render, SIGNAL('updated()'), self, SIGNAL('updated()'))
-                    [new_render, render_options]
-                end
+                @available_renderers =
+                    available_renderers.map_value do |_key, (value, render_options)|
+                        new_render = value.class.new(page)
+                        disconnect(value, SIGNAL("updated()"))
+                        connect(new_render, SIGNAL("updated()"),
+                                self, SIGNAL("updated()"))
+                        [new_render, render_options]
+                    end
             end
 
             # @api private
@@ -83,29 +86,27 @@ module MetaRuby
             #   objects
             def find_renderer(mod)
                 available_renderers.find do |model, _|
-                    mod.kind_of?(model) || (mod.kind_of?(Module) && model.kind_of?(Module) && mod <= model)
+                    mod.kind_of?(model) || (
+                        mod.kind_of?(Module) &&
+                        model.kind_of?(Module) &&
+                        mod <= model
+                    )
                 end
             end
 
             # Disable the current renderer
             def disable
-                if current_renderer
-                    current_renderer.disable
-                end
+                current_renderer&.disable
             end
 
             # Enable the current renderer
             def enable
-                if current_renderer
-                    current_renderer.enable
-                end
+                current_renderer&.enable
             end
 
             # Clear the current renderer
             def clear
-                if current_renderer
-                    current_renderer.clear
-                end
+                current_renderer&.clear
             end
 
             # Call to render the given model
@@ -121,21 +122,22 @@ module MetaRuby
             #   given model
             def render(object, **push_options)
                 _, (renderer, render_options) = find_renderer(object)
-                if renderer
-                    if current_renderer
-                        current_renderer.clear
-                        current_renderer.disable
-                    end
-                    renderer.enable
-                    renderer.render(object, render_options.merge(push_options))
-                    @current_renderer = renderer
-                else
-                    Kernel.raise ArgumentError, "no view available for #{object} (#{object.class})"
+
+                unless renderer
+                    Kernel.raise ArgumentError,
+                                 "no view available for #{object} (#{object.class})"
                 end
+
+                current_renderer&.clear
+                current_renderer&.disable
+
+                renderer.enable
+                @current_renderer = renderer
+
+                renderer.render(object, **render_options.merge(push_options))
             end
 
-            signals 'updated()'
+            signals "updated()"
         end
     end
 end
-

@@ -57,6 +57,8 @@ module MetaRuby
             # A Page object tunes to create URIs for objects that are suitable
             # for {#model_selector}
             class Page < HTML::Page
+                attr_reader :model_selector
+
                 def initialize(model_selector, display_page)
                     super(display_page)
                     @model_selector = model_selector
@@ -71,6 +73,18 @@ module MetaRuby
                     else
                         super
                     end
+                end
+
+                def populate_context_menu(menu, browser, _event)
+                    act = page.action(Qt::WebPage::Back)
+                    act.enabled = true
+                    menu.add_action act
+                    connect(act, SIGNAL(:triggered), browser, SLOT(:back))
+
+                    act = page.action(Qt::WebPage::Forward)
+                    act.enabled = true
+                    connect(act, SIGNAL(:triggered), browser, SLOT(:forward))
+                    menu.add_action act
                 end
             end
 
@@ -144,8 +158,8 @@ module MetaRuby
             # modification to have any effect (i.e. for the newly registered
             # models to appear on the selector)
             #
-            # @param [Model] type the base model class for the models that are
-            #   considered here
+            # @param [Model] root_model the base model class for the models that
+            #   are considered here
             # @param [Class] rendering_class a class from which a relevant
             #   rendering object can be created. The generated instances must
             #   follow the rules described in the documentation of
@@ -163,34 +177,41 @@ module MetaRuby
                 manager.register_type(root_model, rendering_class)
             end
 
+            module WebViewExtension
+                attr_accessor :metaruby_browser
+
+                def metaruby_page
+                    @metaruby_browser.page
+                end
+
+                def contextMenuEvent(event)
+                    menu = Qt::Menu.new(self)
+                    metaruby_page.populate_context_menu(menu, metaruby_browser, event)
+                    view = metaruby_browser.manager.current_renderer
+                    if view.respond_to?(:populate_context_menu)
+                        view.populate_context_menu(menu, metaruby_browser, event)
+                    end
+
+                    menu.popup(event.globalPos)
+                    event.accept
+                end
+            end
+
             # Sets up the widgets that form the central part of the browser
             def add_central_widgets(splitter)
                 @model_selector = ModelSelector.new
                 splitter.add_widget(model_selector)
 
                 # Create a central stacked layout
-                display = @display = Qt::WebView.new
-                browser = self
-                display.singleton_class.class_eval do
-                    define_method :contextMenuEvent do |event|
-                        menu = Qt::Menu.new(self)
-                        act = page.action(Qt::WebPage::Back)
-                        act.enabled = true
-                        menu.add_action act
-                        connect(act, SIGNAL(:triggered), browser, SLOT(:back))
-                        act = page.action(Qt::WebPage::Forward)
-                        act.enabled = true
-                        connect(act, SIGNAL(:triggered), browser, SLOT(:forward))
-                        menu.add_action act
-                        menu.popup(event.globalPos)
-                        event.accept
-                    end
-                end
-                splitter.add_widget(display)
-                splitter.set_stretch_factor(1, 2)
+                @display = Qt::WebView.new
+                @display.extend WebViewExtension
+                @display.metaruby_browser = self
                 self.page = Page.new(@model_selector, display.page)
 
-                model_selector.connect(SIGNAL('model_selected(QVariant)')) do |mod|
+                splitter.add_widget(display)
+                splitter.set_stretch_factor(1, 2)
+
+                model_selector.connect(SIGNAL("model_selected(QVariant)")) do |mod|
                     mod = mod.to_ruby
                     push_to_history(mod)
                     render_model(mod)
@@ -207,6 +228,7 @@ module MetaRuby
                     disconnect(@page, SIGNAL('fileOpenClicked(const QUrl&)'), self, SLOT('fileOpenClicked(const QUrl&)'))
                 end
                 manager.page = page
+
                 connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
                 connect(page, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
                 connect(page, SIGNAL('fileOpenClicked(const QUrl&)'), self, SLOT('fileOpenClicked(const QUrl&)'))
@@ -215,29 +237,29 @@ module MetaRuby
             end
 
             def linkClicked(url)
-                if url.scheme == "link"
-                    path = url.path
-                    path = path.split('/')[1..-1]
-                    select_by_path(*path)
-                end
-            end
-            slots 'linkClicked(const QUrl&)'
+                return unless url.scheme == "link"
 
-            signals 'fileOpenClicked(const QUrl&)'
+                path = url.path
+                path = path.split("/")[1..-1]
+                select_by_path(*path)
+            end
+            slots "linkClicked(const QUrl&)"
+
+            signals "fileOpenClicked(const QUrl&)"
 
             # Call to render the given model
             #
             # @param [Model] mod the model that should be rendered
             # @raise [ArgumentError] if there is no view available for the
             #   given model
-            def render_model(mod, options = Hash.new)
+            def render_model(mod, **options)
                 page.clear
                 @registered_exceptions.clear
                 reference_model, _ = manager.find_renderer(mod)
                 if mod
                     page.title = "#{mod.name} (#{reference_model.name})"
                     begin
-                        manager.render(mod, options)
+                        manager.render(mod, **options)
                     rescue ::Exception => e
                         @registered_exceptions << e
                     end

@@ -76,10 +76,9 @@ module MetaRuby
         #   be called
         # @param [Symbol] m the method name
         # @param [Array] args the method arguments
-        # @param [Array<String>] suffixes the accessor suffixes that should be
-        #   resolved. The last argument can be a hash, in which case the keys
-        #   are used as suffixes and the values are the name of the find methods
-        #   that should be used.
+        # @param [{String=>Symbol}] suffix_match the accessor suffixes that
+        #   should be resolved, associated with the find method that should be
+        #   used to resolve them
         # @return [Object,nil] an object if one of the listed suffixes matches
         #   the method name, or nil if the method name does not match the
         #   requested pattern.
@@ -112,16 +111,16 @@ module MetaRuby
 
             m = m.to_s
             suffix_match.each do |s, find_method_name|
-                if m.end_with?(s)
-                    name = m[0, m.size - s.size]
-                    if !args.empty?
-                        raise ArgumentError,
-                              "expected zero arguments to #{m}, got #{args.size}",
-                              caller(4)
-                    else
-                        return object.send(find_method_name, name)
-                    end
+                next unless m.end_with?(s)
+
+                name = m[0, m.size - s.size]
+                unless args.empty?
+                    raise ArgumentError,
+                          "expected zero arguments to #{m}, got #{args.size}",
+                          caller(4)
                 end
+
+                return object.send(find_method_name, name)
             end
             nil
         end
