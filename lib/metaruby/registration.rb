@@ -1,7 +1,7 @@
-require 'facets/module/spacename'
-require 'facets/module/basename'
-require 'utilrb/object/attribute'
-require 'utilrb/module/attr_predicate'
+require "facets/module/spacename"
+require "facets/module/basename"
+require "utilrb/object/attribute"
+require "utilrb/module/attr_predicate"
 
 module MetaRuby
     # Handling of registration of model hierarchies
@@ -24,7 +24,7 @@ module MetaRuby
         # @api private
         #
         # @return [Array<WeakRef>] the set of models that are children of this one
-        attribute(:submodels) { Array.new }
+        attribute(:submodels) { [] }
 
         # Returns whether a model is a submodel of self
         def has_submodel?(model)
@@ -35,17 +35,18 @@ module MetaRuby
         #   which self is registered is permanent or not w.r.t. the model
         #   registration functionality of metaruby
         def permanent_definition_context?
-            return false if !name
+            return false unless name
+
             definition_context_name = spacename
-            if !definition_context_name.empty?
+            if definition_context_name.empty?
+                true
+            else
                 begin
                     enclosing_context = constant("::#{definition_context_name}")
-                    return !enclosing_context.respond_to?(:permanent_model?) || enclosing_context.permanent_model?
+                    !enclosing_context.respond_to?(:permanent_model?) || enclosing_context.permanent_model?
                 rescue NameError
                     false
                 end
-            else
-                true
             end
         end
 
@@ -53,6 +54,7 @@ module MetaRuby
         #   name as a constant
         def self.accessible_by_name?(object)
             return false if !object.respond_to?(:name) || !object.name
+
             begin
                 constant("::#{object.name}") == object
             rescue NameError
@@ -72,30 +74,30 @@ module MetaRuby
                 raise ArgumentError, "cannot register a singleton class"
             end
 
-            if !klass.definition_location
-                klass.definition_location = 
+            unless klass.definition_location
+                klass.definition_location =
                     if MetaRuby.keep_definition_location?
                         caller_locations
-                    else Array.new
+                    else
+                        []
                     end
             end
 
             submodels << WeakRef.new(klass)
-            if m = supermodel
-                m.register_submodel(klass)
-            end
+            return unless m = supermodel
+
+            m.register_submodel(klass)
         end
 
         # Enumerates all models that are submodels of this class
         def each_submodel
-            return enum_for(:each_submodel) if !block_given?
+            return enum_for(:each_submodel) unless block_given?
+
             submodels.delete_if do |obj|
-                begin
-                    yield(obj.__getobj__)
-                    false
-                rescue WeakRef::RefError
-                    true
-                end
+                yield(obj.__getobj__)
+                false
+            rescue WeakRef::RefError
+                true
             end
         end
 
@@ -107,7 +109,7 @@ module MetaRuby
         # Model classes and modules should also clear their respective
         # attributes (if there are any)
         def clear_model
-            if !permanent_model?
+            unless permanent_model?
                 if m = supermodel
                     m.deregister_submodels([self])
                 end
@@ -120,11 +122,11 @@ module MetaRuby
         def clear_registration_as_constant
             # Deregister non-permanent models that are registered in the
             # constant hierarchy
-            if Registration.accessible_by_name?(self)
-                Registration.deregister_constant(self)
-            end
+            return unless Registration.accessible_by_name?(self)
+
+            Registration.deregister_constant(self)
         end
-        
+
         # Removes the constant that stores the given object in the Ruby constant
         # hierarchy
         #
@@ -137,9 +139,7 @@ module MetaRuby
         # Recursively deregisters all non-permanent submodels
         def clear_submodels
             permanent, non_permanent = each_submodel.partition { |m| m.permanent_model? }
-            if !non_permanent.empty?
-                deregister_submodels(non_permanent)
-            end
+            deregister_submodels(non_permanent) unless non_permanent.empty?
 
             non_permanent.each do |m|
                 m.clear_registration_as_constant
@@ -167,14 +167,10 @@ module MetaRuby
         def deregister_submodels(set)
             has_match = false
             submodels.delete_if do |m|
-                begin
-                    m = m.__getobj__
-                    if set.include?(m)
-                        has_match = true
-                    end
-                rescue WeakRef::RefError
-                    true
-                end
+                m = m.__getobj__
+                has_match = true if set.include?(m)
+            rescue WeakRef::RefError
+                true
             end
 
             if m = supermodel
@@ -184,6 +180,3 @@ module MetaRuby
         end
     end
 end
-
-
-

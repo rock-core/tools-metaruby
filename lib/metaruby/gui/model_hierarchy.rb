@@ -3,10 +3,9 @@ module MetaRuby
         class ModelHierarchy < Qt::StandardItemModel
             Metadata = Struct.new :name, :search_key, :categories do
                 def merge(other)
-                    a, b = search_key, other.search_key.dup
-                    if a.size < b.size
-                        a, b = b, a
-                    end
+                    a = search_key
+                    b = other.search_key.dup
+                    a, b = b, a if a.size < b.size
                     b.size.times do |i|
                         a[i] |= b[i]
                     end
@@ -34,22 +33,23 @@ module MetaRuby
                     split = name.split("::")
                     if name.start_with?("::")
                         split[1..-1]
-                    else split
+                    else
+                        split
                     end
                 end
 
                 def each_submodel(model)
-                    if model == @root_model
-                        model.each_submodel do |m|
-                            yield(m, !m.name)
-                        end
+                    return unless model == @root_model
+
+                    model.each_submodel do |m|
+                        yield(m, !m.name)
                     end
                 end
             end
 
             def initialize
-                super()
-                @root_models = Array.new
+                super
+                @root_models = []
             end
 
             # Find the resolver object that has been responsible for a given
@@ -64,14 +64,15 @@ module MetaRuby
             def find_path_from_model(model)
                 return unless model.name
 
-                if (resolver = find_resolver_from_model(model))
-                    resolver.split_name(model)
-                end
+                return unless (resolver = find_resolver_from_model(model))
+
+                resolver.split_name(model)
             end
 
             RootModel = Struct.new :model, :priority, :categories, :resolver
 
-            def add_root(root_model, priority, categories: [], resolver: Resolver.new(root_model))
+            def add_root(root_model, priority, categories: [],
+                resolver: Resolver.new(root_model))
                 @root_models << RootModel.new(root_model, priority, categories, resolver)
             end
 
@@ -81,18 +82,19 @@ module MetaRuby
                 begin_reset_model
                 clear
 
-                @items_to_models = Hash.new
-                @models_to_items = Hash.new
-                @names_to_item = Hash.new
+                @items_to_models = {}
+                @models_to_items = {}
+                @names_to_item = {}
                 @items_metadata = Hash[self => Metadata.new([], [], Set.new)]
-                @resolver_from_model = Hash.new
+                @resolver_from_model = {}
 
                 seen = Set.new
-                sorted_roots = @root_models.
-                    sort_by(&:priority).reverse
+                sorted_roots = @root_models
+                               .sort_by(&:priority).reverse
 
                 sorted_roots.each do |root_model|
-                    models = discover_model_hierarchy(root_model.model, root_model.categories, root_model.resolver, seen)
+                    models = discover_model_hierarchy(root_model.model,
+                                                      root_model.categories, root_model.resolver, seen)
                     models.each do |m|
                         @resolver_from_model[m] = root_model.resolver
                     end
@@ -144,7 +146,7 @@ module MetaRuby
             def register_model(model, model_categories, resolver)
                 name = resolver.split_name(model)
                 if !name || name.empty?
-                    #raise ArgumentError, "cannot resolve #{model.name}"
+                    # raise ArgumentError, "cannot resolve #{model.name}"
                     puts "Cannot resolve #{model}"
                     return
                 end
@@ -152,24 +154,26 @@ module MetaRuby
                 context = name[0..-2].inject(self) do |item, name|
                     resolve_namespace(item, name)
                 end
-                if !(item = find_item_child_by_name(context, name.last))
+                unless (item = find_item_child_by_name(context, name.last))
                     item = Qt::StandardItem.new(name.last)
                     context.append_row(item)
-                    (@names_to_item[context] ||= Hash.new)[name.last] = item
+                    (@names_to_item[context] ||= {})[name.last] = item
                 end
 
                 item.flags = Qt::ItemIsEnabled
 
-                @items_metadata[item] = Metadata.new(name, name.map { |n| [n] }, model_categories)
+                @items_metadata[item] = Metadata.new(name, name.map do |n|
+                    [n]
+                end, model_categories)
                 @items_to_models[item] = model
                 @models_to_items[model] = item
             end
 
             # @api private
             def find_item_child_by_name(item, name)
-                if context = @names_to_item[item]
-                    context[name]
-                end
+                return unless context = @names_to_item[item]
+
+                context[name]
             end
 
             # Returns the QStandardItem object that sits at the given path
@@ -177,7 +181,8 @@ module MetaRuby
             # @return [Qt::StandardItem,nil]
             def find_item_by_path(*path)
                 path.inject(self) do |parent_item, name|
-                    return if !name
+                    return unless name
+
                     if names = @names_to_item[parent_item]
                         names[name]
                     end
@@ -188,9 +193,9 @@ module MetaRuby
             #
             # @return [Qt::ModelIndex,nil]
             def find_index_by_path(*path)
-                if item = find_item_by_path(*path)
-                    item.index
-                end
+                return unless item = find_item_by_path(*path)
+
+                item.index
             end
 
             # Returns the QStandardItem object that represents the given model
@@ -200,28 +205,30 @@ module MetaRuby
 
             # Returns the QModelIndex object that represents the given model
             def find_index_by_model(model)
-                if item = find_item_by_model(model)
-                    item.index
-                end
+                return unless item = find_item_by_model(model)
+
+                item.index
             end
 
             # @api private
             #
             # Register a model and its whole submodels hierarchy
             def discover_model_hierarchy(root_model, categories, resolver, seen)
-                discovered = Array.new
+                discovered = []
                 queue = [root_model]
                 categories = categories.to_set
 
-                while !queue.empty?
+                until queue.empty?
                     m = queue.shift
                     next if seen.include?(m)
+
                     seen << m
                     discovered << m
 
                     register_model(m, categories, resolver)
                     resolver.each_submodel(m) do |model, excluded|
                         raise if model.kind_of?(String)
+
                         if excluded
                             seen << model
                         else
@@ -259,12 +266,12 @@ module MetaRuby
                     item.flags = 0
 
                     parent_name = @items_metadata[parent_item].name
-                    @items_metadata[item] = Metadata.new(parent_name + [name], [], Set.new)
+                    @items_metadata[item] =
+                        Metadata.new(parent_name + [name], [], Set.new)
                     parent_item.append_row item
-                    (@names_to_item[parent_item] ||= Hash.new)[name] = item
+                    (@names_to_item[parent_item] ||= {})[name] = item
                 end
             end
         end
     end
 end
-

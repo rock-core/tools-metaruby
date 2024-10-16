@@ -1,5 +1,5 @@
-require 'metaruby/dsls/doc'
-require 'metaruby/dsls/find_through_method_missing'
+require "metaruby/dsls/doc"
+require "metaruby/dsls/find_through_method_missing"
 
 module MetaRuby
     # DSLs-related tools
@@ -13,7 +13,7 @@ module MetaRuby
     #   task.test_event # => task.find_event("test")
     #
     # See {DSLs::FindThroughMethodMissing} for a complete description
-    # 
+    #
     # == Documentation parsing
     #
     # This provides the logic to find a documentation block above a DSL-like

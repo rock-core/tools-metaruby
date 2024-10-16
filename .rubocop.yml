@@ -1,0 +1,13 @@
+inherit_from: .rubocop_todo.yml
+
+inherit_gem:
+  rubocop-rock: defaults.yml
+
+inherit_mode:
+  merge:
+  - Exclude
+  - AllowedNames
+
+AllCops:
+    TargetRubyVersion: "2.5"
+    NewCops: enable

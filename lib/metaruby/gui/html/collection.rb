@@ -20,7 +20,8 @@ module MetaRuby::GUI
             attr_reader :registered_exceptions
 
             # Representation of an element in the collection
-            class Element < Struct.new(:object, :format, :url, :text, :rendering_options, :attributes)
+            class Element < Struct.new(:object, :format, :url, :text, :rendering_options,
+                                       :attributes)
             end
 
             # Create a collection that acts on a page
@@ -29,24 +30,26 @@ module MetaRuby::GUI
                 @page = page
                 @manager = RenderingManager.new(page)
 
-                @object_id_to_object = Hash.new
-                @registered_exceptions = Array.new
+                @object_id_to_object = {}
+                @registered_exceptions = []
             end
 
             # (see RenderingManager#register_type)
-            def register_type(type, rendering_class, render_options = Hash.new)
+            def register_type(type, rendering_class, render_options = {})
                 manager.register_type(type, rendering_class, render_options)
             end
 
             # (see RenderingManager#enable)
             def enable
-                connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClickedHandler(const QUrl&)'))
+                connect(page, SIGNAL("linkClicked(const QUrl&)"), self,
+                        SLOT("linkClickedHandler(const QUrl&)"))
                 manager.enable
             end
 
             # (see RenderingManager#disable)
             def disable
-                disconnect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClickedHandler(const QUrl&)'))
+                disconnect(page, SIGNAL("linkClicked(const QUrl&)"), self,
+                           SLOT("linkClickedHandler(const QUrl&)"))
                 manager.disable
             end
 
@@ -64,9 +67,9 @@ module MetaRuby::GUI
 
             def element_link_target(object, interactive)
                 if interactive
-                    id =  "link://metaruby/#{namespace}#{object.object_id}"
+                    "link://metaruby/#{namespace}#{object.object_id}"
                 else
-                    id =  "##{object.object_id}"
+                    "##{object.object_id}"
                 end
             end
 
@@ -82,7 +85,7 @@ module MetaRuby::GUI
                 end
 
                 links = links.map do |el|
-                    a_node = el.format % ["<a href=\"#{el.url}\">#{el.text}</a>"]
+                    a_node = format(el.format, "<a href=\"#{el.url}\">#{el.text}</a>")
                     [a_node, el.attributes || {}]
                 end
                 page.render_list(title, links, **push_options)
@@ -91,9 +94,11 @@ module MetaRuby::GUI
             def render_all_elements(all, options)
                 all.each do |element|
                     object_id = element.object.object_id
-                    page.push(nil, "<h1 id=#{object_id}>#{element.format % element.text}</h1>")
+                    page.push(nil,
+                              "<h1 id=#{object_id}>#{element.format % element.text}</h1>")
 
-                    render_element(element.object, options.merge(element.rendering_options))
+                    render_element(element.object,
+                                   options.merge(element.rendering_options))
                 end
             end
 
@@ -103,17 +108,17 @@ module MetaRuby::GUI
             # object when the link is a link to an object of the collection, or
             # passes the URL to the linkClicked signal otherwise.
             def linkClickedHandler(url)
-                if url.host == "metaruby" && url.path =~ /^\/#{Regexp.quote(namespace)}(\d+)/
-                    object = object_id_to_object[Integer($1)]
+                if url.host == "metaruby" && url.path =~ %r{^/#{Regexp.quote(namespace)}(\d+)}
+                    object = object_id_to_object[Integer(::Regexp.last_match(1))]
                     render_element(object)
                 else
                     emit linkClicked(url)
                 end
             end
-            slots 'linkClickedHandler(const QUrl&)'
-            signals 'linkClicked(const QUrl&)'
+            slots "linkClickedHandler(const QUrl&)"
+            signals "linkClicked(const QUrl&)"
 
-            def render_element(object, options = Hash.new)
+            def render_element(object, options = {})
                 page.restore
                 registered_exceptions.clear
                 options = Hash[id: "#{namespace}/currently_rendered_element"].merge(options)

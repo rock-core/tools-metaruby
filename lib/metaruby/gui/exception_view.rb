@@ -1,5 +1,5 @@
-require 'metaruby/gui/html'
-require 'metaruby/gui/exception_rendering'
+require "metaruby/gui/html"
+require "metaruby/gui/exception_rendering"
 
 module MetaRuby
     module GUI
@@ -23,17 +23,18 @@ module MetaRuby
                 @displayed_exceptions = []
                 self.focus_policy = Qt::NoFocus
 
-                @metaruby_page = HTML::Page.new(self.page)
-                connect(@metaruby_page, SIGNAL('fileOpenClicked(const QUrl&)'),
-                        self, SLOT('fileOpenClicked(const QUrl&)'))
+                @metaruby_page = HTML::Page.new(page)
+                connect(@metaruby_page, SIGNAL("fileOpenClicked(const QUrl&)"),
+                        self, SLOT("fileOpenClicked(const QUrl&)"))
                 @exception_rendering = ExceptionRendering.new(metaruby_page)
 
-                if ENV['METARUBY_GUI_DEBUG_HTML']
-                    page.settings.setAttribute(Qt::WebSettings::DeveloperExtrasEnabled, true)
-                    @inspector = Qt::WebInspector.new
-                    @inspector.page = page
-                    @inspector.show
-                end
+                return unless ENV["METARUBY_GUI_DEBUG_HTML"]
+
+                page.settings.setAttribute(Qt::WebSettings::DeveloperExtrasEnabled,
+                                           true)
+                @inspector = Qt::WebInspector.new
+                @inspector.page = page
+                @inspector.show
             end
 
             def user_file_filter=(filter)
@@ -78,11 +79,10 @@ module MetaRuby
             end
 
             def contents_height
-                self.page.main_frame.contents_size.height
+                page.main_frame.contents_size.height
             end
 
-            signals 'fileOpenClicked(const QUrl&)'
+            signals "fileOpenClicked(const QUrl&)"
         end
     end
 end
-

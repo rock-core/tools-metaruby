@@ -2,7 +2,7 @@ module MetaRuby::GUI
     module HTML
         # The directory relative to which ressources (such as css or javascript
         # files) are resolved by default
-        RESSOURCES_DIR = File.expand_path(File.dirname(__FILE__))
+        RESSOURCES_DIR = __dir__
 
         # A class that can be used as the webpage container for the Page class
         class HTMLPage
@@ -10,7 +10,9 @@ module MetaRuby::GUI
             attr_accessor :html
 
             # Method expected by {Page}
-            def main_frame; self end
+            def main_frame
+                self
+            end
         end
 
         # A helper class that gives us easy-to-use page elements on a
@@ -136,14 +138,15 @@ module MetaRuby::GUI
                 if Pathname.new(path).absolute?
                     path
                 else
-                    File.join('${RESOURCE_DIR}', path)
+                    File.join("${RESOURCE_DIR}", path)
                 end
             end
 
             # Load a javascript file in the head
             def load_javascript(file)
                 add_to_head(
-                    "<script type=\"text/javascript\" src=\"#{path_in_resource(file)}\"></script>")
+                    "<script type=\"text/javascript\" src=\"#{path_in_resource(file)}\"></script>"
+                )
             end
 
             # Helper that generates a HTML link to a given object
@@ -157,17 +160,16 @@ module MetaRuby::GUI
             def link_to(object, text = nil, **args)
                 text = HTML.escape_html(text || object.name || "<anonymous>")
                 if uri = uri_for(object)
-                    if uri !~ /^\w+:\/\//
-                        if uri[0, 1] != '/'
-                            uri = "/#{uri}"
-                        end
-                        uri = Qt::Url.new("link://metaruby#{uri}")
-                    else
+                    if uri =~ %r{^\w+://}
                         uri = Qt::Url.new(uri)
+                    else
+                        uri = "/#{uri}" if uri[0, 1] != "/"
+                        uri = Qt::Url.new("link://metaruby#{uri}")
                     end
                     args.each { |k, v| uri.add_query_item(k.to_s, v.to_s) }
                     "<a href=\"#{uri.to_string}\">#{text}</a>"
-                else text
+                else
+                    text
                 end
             end
 
@@ -201,7 +203,7 @@ module MetaRuby::GUI
             # @see render_list
             LIST_TEMPLATE = File.join(RESSOURCES_DIR, "list.rhtml")
             # Assets (CSS, javascript) that are included in every page
-            ASSETS = %w{page.css jquery.min.js jquery.selectfilter.js}
+            ASSETS = %w[page.css jquery.min.js jquery.selectfilter.js]
 
             # Copy the assets to a target directory
             #
@@ -250,7 +252,7 @@ module MetaRuby::GUI
             end
 
             def scale_attribute(node, name, scale)
-                node.attributes[name] = node.attributes[name].gsub /[\d\.]+/ do |n|
+                node.attributes[name] = node.attributes[name].gsub(/[\d\.]+/) do |n|
                     (Float(n) * scale).to_s
                 end
             end
@@ -307,22 +309,24 @@ module MetaRuby::GUI
             # into the buttonClicked signal (for buttons), fileClicked for files
             # and linkClicked for links
             def pageLinkClicked(url)
-                if url.scheme == 'btn' && url.host == 'metaruby'
+                if url.scheme == "btn" && url.host == "metaruby"
                     if btn = find_button_by_url(url)
-                        new_state = if url.fragment == 'on' then true
-                                    else false
-                                    end
+                        new_state = url.fragment == "on"
 
                         btn.state = new_state
-                        new_text = btn.text
+                        btn.text
                         element = find_first_element("a##{btn.html_id}")
                         element.replace(btn.render)
 
                         emit buttonClicked(btn.id, new_state)
                     else
-                        MetaRuby.warn "invalid button URI #{url.to_string}: could not find corresponding handler (known buttons are #{fragments.flat_map { |f| f.buttons.map { |btn| btn.id.to_string } }.sort.join(", ")})"
+                        MetaRuby.warn "invalid button URI #{url.to_string}: could not find corresponding handler (known buttons are #{fragments.flat_map do |f|
+                            f.buttons.map do |btn|
+                                btn.id.to_string
+                            end
+                        end.sort.join(', ')})"
                     end
-                elsif url.scheme == 'link' && url.host == 'metaruby'
+                elsif url.scheme == "link" && url.host == "metaruby"
                     emit linkClicked(url)
                 elsif url.scheme == "file"
                     emit fileOpenClicked(url)
@@ -343,9 +347,9 @@ module MetaRuby::GUI
 
             # Restore the page at the state it was at the last call to {#save}
             def restore
-                return if !@saved_state
+                return unless @saved_state
 
-                fragments_by_id = Hash.new
+                fragments_by_id = {}
                 @saved_state.each do |fragment|
                     fragments_by_id[fragment.id] = fragment
                 end
@@ -445,7 +449,7 @@ module MetaRuby::GUI
                 push(title, html, **push_options.merge(id: id))
             end
 
-            signals 'updated()'
+            signals "updated()"
 
             # Renders an object into a HTML page
             #
@@ -467,8 +471,8 @@ module MetaRuby::GUI
             # @param (see to_html_page)
             # @return [String]
             def self.to_html(object, renderer, ressource_dir: RESSOURCES_DIR, **options)
-                to_html_page(object, renderer, **options).
-                    html(ressource_dir: ressource_dir)
+                to_html_page(object, renderer, **options)
+                    .html(ressource_dir: ressource_dir)
             end
 
             # Renders an object into a HTML body
@@ -476,10 +480,9 @@ module MetaRuby::GUI
             # @param (see to_html_page)
             # @return [String]
             def self.to_html_body(object, renderer, ressource_dir: RESSOURCES_DIR, **options)
-                to_html_page(object, renderer, **options).
-                    html_body(ressource_dir: ressource_dir)
+                to_html_page(object, renderer, **options)
+                    .html_body(ressource_dir: ressource_dir)
             end
         end
     end
 end
-

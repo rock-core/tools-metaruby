@@ -1,42 +1,42 @@
-require 'metaruby/test'
+require "metaruby/test"
 
 class TC_Models < MiniTest::Test
     def test_inherited_attribute_class
         a_meta = Module.new do
             extend MetaRuby::Attributes
-            inherited_attribute(:signature, :signatures) { Array.new }
-            inherited_attribute(:mapped, :map, :map => true) { Hash.new }
+            inherited_attribute(:signature, :signatures) { [] }
+            inherited_attribute(:mapped, :map, map: true) { {} }
         end
-	a = Class.new do
+        a = Class.new do
             extend a_meta
-	end
+        end
         b_meta = Module.new do
             extend MetaRuby::Attributes
-	    inherited_attribute(:child_attribute) { Array.new }
+            inherited_attribute(:child_attribute) { [] }
         end
-	b = Class.new(a) do
-	    include Module.new # include an empty module between a and b to check that the module
-			       # is skipped transparently
+        b = Class.new(a) do
+            include Module.new # include an empty module between a and b to check that the module
+            # is skipped transparently
             extend b_meta
-	end
-	check_inherited_attribute(a, b)
-	
-	# Test for singleton class support
-	object = b.new
-	assert(object.singleton_class.respond_to?(:signatures))
-	object.singleton_class.signatures << :in_singleton
-	assert_equal([:in_singleton], object.singleton_class.signatures)
+        end
+        check_inherited_attribute(a, b)
+
+        # Test for singleton class support
+        object = b.new
+        assert(object.singleton_class.respond_to?(:signatures))
+        object.singleton_class.signatures << :in_singleton
+        assert_equal([:in_singleton], object.singleton_class.signatures)
     end
 
     def check_inherited_attribute(base, derived)
-	assert(base.respond_to?(:each_signature))
-	assert(base.respond_to?(:signatures))
-	assert(base.respond_to?(:has_signature?))
-	assert(!base.respond_to?(:find_signatures))
+        assert(base.respond_to?(:each_signature))
+        assert(base.respond_to?(:signatures))
+        assert(base.respond_to?(:has_signature?))
+        assert(!base.respond_to?(:find_signatures))
 
-	assert(base.respond_to?(:each_mapped))
-	assert(base.respond_to?(:map))
-	assert(base.respond_to?(:has_mapped?))
+        assert(base.respond_to?(:each_mapped))
+        assert(base.respond_to?(:map))
+        assert(base.respond_to?(:has_mapped?))
 
         base.signatures << :in_base
         base.map[:base] = 10
@@ -44,37 +44,43 @@ class TC_Models < MiniTest::Test
         assert_equal([:in_base], base.enum_for(:each_signature).to_a)
         assert_equal([10].to_set, base.enum_for(:each_mapped, :base, false).to_set)
 
-	assert(!base.respond_to?(:child_attribute))
-	assert(!base.respond_to?(:each_child_attribute))
-	assert(derived.respond_to?(:child_attribute))
-	assert(derived.respond_to?(:each_child_attribute))
+        assert(!base.respond_to?(:child_attribute))
+        assert(!base.respond_to?(:each_child_attribute))
+        assert(derived.respond_to?(:child_attribute))
+        assert(derived.respond_to?(:each_child_attribute))
 
         derived.signatures << :in_derived
 
         derived.map[:overriden] = 15
         derived.map[:derived] = 25
 
-        assert_equal([:in_derived, :in_base], derived.enum_for(:each_signature).to_a)
-        assert_equal([20, 15].to_set, derived.enum_for(:each_mapped, :overriden, false).to_set)
-        assert_equal([15].to_set, derived.enum_for(:each_mapped, :overriden, true).to_set)
+        assert_equal(%i[in_derived in_base], derived.enum_for(:each_signature).to_a)
+        assert_equal([20, 15].to_set,
+                     derived.enum_for(:each_mapped, :overriden, false).to_set)
+        assert_equal([15].to_set,
+                     derived.enum_for(:each_mapped, :overriden, true).to_set)
         assert_equal([25].to_set, derived.enum_for(:each_mapped, :derived).to_set)
-        assert_equal([[:base, 10], [:overriden, 20], [:overriden, 15], [:derived, 25]].to_set, derived.enum_for(:each_mapped, nil, false).to_set)
-        assert_equal([[:base, 10], [:overriden, 15], [:derived, 25]].to_set, derived.enum_for(:each_mapped, nil, true).to_set)
+        assert_equal(
+            [[:base, 10], [:overriden, 20], [:overriden, 15],
+             [:derived, 25]].to_set, derived.enum_for(:each_mapped, nil, false).to_set
+        )
+        assert_equal([[:base, 10], [:overriden, 15], [:derived, 25]].to_set,
+                     derived.enum_for(:each_mapped, nil, true).to_set)
     end
 
     def test_inherited_attribute_non_mapping_promote
-	a = Class.new do
+        a = Class.new do
             class << self
                 extend MetaRuby::Attributes
                 def promote_value(v)
                     v
                 end
-                inherited_attribute(:value, :values) { Array.new }
+                inherited_attribute(:value, :values) { [] }
             end
-	end
-        b = flexmock(Class.new(a), 'b')
-        c = flexmock(Class.new(b), 'c')
-        d = flexmock(Class.new(c), 'd')
+        end
+        b = flexmock(Class.new(a), "b")
+        c = flexmock(Class.new(b), "c")
+        d = flexmock(Class.new(c), "d")
 
         c.should_receive(:promote_value).with(10).and_return("10_b_c").once.ordered
         d.should_receive(:promote_value).with("10_b_c").and_return(12).once.ordered
@@ -97,127 +103,147 @@ class TC_Models < MiniTest::Test
     end
 
     def test_inherited_attribute_mapping_promote
-	a = Class.new do
+        a = Class.new do
             class << self
                 extend MetaRuby::Attributes
-                def promote_value(key, v)
+                def promote_value(key, v); end
+
+                def name
+                    "A"
                 end
-                def name; 'A' end
-                inherited_attribute(:value, :values, :map => true) { Hash.new }
+                inherited_attribute(:value, :values, map: true) { {} }
             end
-	end
+        end
         b = Class.new(a)
         c = Class.new(b)
         d = Class.new(c)
 
-        flexmock(c).should_receive(:promote_value).with('b', 2).and_return("b2_b_c").once.ordered
-        flexmock(d).should_receive(:promote_value).with('b', "b2_b_c").and_return(15).once.ordered
+        flexmock(c).should_receive(:promote_value).with("b",
+                                                        2).and_return("b2_b_c").once.ordered
+        flexmock(d).should_receive(:promote_value).with("b",
+                                                        "b2_b_c").and_return(15).once.ordered
 
-        flexmock(c).should_receive(:promote_value).with('c', 3).and_return("c3_b_c").once.ordered
-        flexmock(d).should_receive(:promote_value).with('c', "c3_b_c").and_return(16).once.ordered
+        flexmock(c).should_receive(:promote_value).with("c",
+                                                        3).and_return("c3_b_c").once.ordered
+        flexmock(d).should_receive(:promote_value).with("c",
+                                                        "c3_b_c").and_return(16).once.ordered
 
-        flexmock(b).should_receive(:promote_value).with('a', 0).and_return("a0_a_b").once.ordered
-        flexmock(c).should_receive(:promote_value).with('a', "a0_a_b").and_return("a0_b_c").once.ordered
-        flexmock(d).should_receive(:promote_value).with('a', "a0_b_c").and_return(10).once.ordered
+        flexmock(b).should_receive(:promote_value).with("a",
+                                                        0).and_return("a0_a_b").once.ordered
+        flexmock(c).should_receive(:promote_value).with("a",
+                                                        "a0_a_b").and_return("a0_b_c").once.ordered
+        flexmock(d).should_receive(:promote_value).with("a",
+                                                        "a0_b_c").and_return(10).once.ordered
 
-        a.values.merge!('a' => 0, 'b' => 1)
-        b.values.merge!('b' => 2, 'c' => 3, 'd' => 4)
-        d.values.merge!('d' => 5, 'e' => 6)
-        assert_equal [['d', 5], ['e', 6], ['b', 15], ['c', 16], ['a', 10]], d.each_value.to_a
+        a.values.merge!("a" => 0, "b" => 1)
+        b.values.merge!("b" => 2, "c" => 3, "d" => 4)
+        d.values.merge!("d" => 5, "e" => 6)
+        assert_equal [["d", 5], ["e", 6], ["b", 15], ["c", 16], ["a", 10]],
+                     d.each_value.to_a
     end
 
     def test_inherited_attribute_mapping_promote_non_uniq
-	a = Class.new do
+        a = Class.new do
             class << self
                 extend MetaRuby::Attributes
-                def promote_value(key, v)
-                end
-                inherited_attribute(:value, :values, :map => true) { Hash.new }
+                def promote_value(key, v); end
+                inherited_attribute(:value, :values, map: true) { {} }
             end
-	end
-        b = flexmock(Class.new(a), 'b')
-        c = flexmock(Class.new(b), 'c')
-        d = flexmock(Class.new(c), 'd')
+        end
+        b = flexmock(Class.new(a), "b")
+        c = flexmock(Class.new(b), "c")
+        d = flexmock(Class.new(c), "d")
 
-        c.should_receive(:promote_value).with('b', 2).and_return("b2_b_c").once.ordered
-        d.should_receive(:promote_value).with('b', "b2_b_c").and_return(12).once.ordered
+        c.should_receive(:promote_value).with("b", 2).and_return("b2_b_c").once.ordered
+        d.should_receive(:promote_value).with("b",
+                                              "b2_b_c").and_return(12).once.ordered
 
-        c.should_receive(:promote_value).with('c', 3).and_return("c3_b_c").once.ordered
-        d.should_receive(:promote_value).with('c', "c3_b_c").and_return(13).once.ordered
+        c.should_receive(:promote_value).with("c", 3).and_return("c3_b_c").once.ordered
+        d.should_receive(:promote_value).with("c",
+                                              "c3_b_c").and_return(13).once.ordered
 
-        c.should_receive(:promote_value).with('d', 4).and_return("d4_b_c").once.ordered
-        d.should_receive(:promote_value).with('d', "d4_b_c").and_return(14).once.ordered
+        c.should_receive(:promote_value).with("d", 4).and_return("d4_b_c").once.ordered
+        d.should_receive(:promote_value).with("d",
+                                              "d4_b_c").and_return(14).once.ordered
 
-        b.should_receive(:promote_value).with('a', 0).and_return("a0_a_b").once.ordered
-        c.should_receive(:promote_value).with('a', "a0_a_b").and_return("a0_b_c").once.ordered
-        d.should_receive(:promote_value).with('a', "a0_b_c").and_return(10).once.ordered
+        b.should_receive(:promote_value).with("a", 0).and_return("a0_a_b").once.ordered
+        c.should_receive(:promote_value).with("a",
+                                              "a0_a_b").and_return("a0_b_c").once.ordered
+        d.should_receive(:promote_value).with("a",
+                                              "a0_b_c").and_return(10).once.ordered
 
-        b.should_receive(:promote_value).with('b', 1).and_return("b1_a_b").once.ordered
-        c.should_receive(:promote_value).with('b', "b1_a_b").and_return("b1_b_c").once.ordered
-        d.should_receive(:promote_value).with('b', "b1_b_c").and_return(11).once.ordered
+        b.should_receive(:promote_value).with("b", 1).and_return("b1_a_b").once.ordered
+        c.should_receive(:promote_value).with("b",
+                                              "b1_a_b").and_return("b1_b_c").once.ordered
+        d.should_receive(:promote_value).with("b",
+                                              "b1_b_c").and_return(11).once.ordered
 
-        a.values.merge!('a' => 0, 'b' => 1)
-        b.values.merge!('b' => 2, 'c' => 3, 'd' => 4)
-        d.values.merge!('d' => 5, 'e' => 6)
-        assert_equal [['d', 5], ['e', 6], ['b', 12], ['c', 13], ['d', 14], ['a', 10], ['b', 11]], d.each_value(nil, false).to_a
+        a.values.merge!("a" => 0, "b" => 1)
+        b.values.merge!("b" => 2, "c" => 3, "d" => 4)
+        d.values.merge!("d" => 5, "e" => 6)
+        assert_equal [["d", 5], ["e", 6], ["b", 12], ["c", 13], ["d", 14], ["a", 10], ["b", 11]],
+                     d.each_value(nil, false).to_a
     end
 
     def test_inherited_attribute_mapping_promote_with_key_uniq
-	a = Class.new do
+        a = Class.new do
             class << self
                 extend MetaRuby::Attributes
-                def promote_value(key, v)
-                end
-                inherited_attribute(:value, :values, :map => true) { Hash.new }
+                def promote_value(key, v); end
+                inherited_attribute(:value, :values, map: true) { {} }
             end
-	end
-        b = flexmock(Class.new(a), 'b')
-        c = flexmock(Class.new(b), 'c')
-        d = flexmock(Class.new(c), 'd')
+        end
+        b = flexmock(Class.new(a), "b")
+        c = flexmock(Class.new(b), "c")
+        d = flexmock(Class.new(c), "d")
 
-        c.should_receive(:promote_value).with('b', 2).and_return("b2_b_c").once.ordered
-        d.should_receive(:promote_value).with('b', "b2_b_c").and_return(12).once.ordered
+        c.should_receive(:promote_value).with("b", 2).and_return("b2_b_c").once.ordered
+        d.should_receive(:promote_value).with("b",
+                                              "b2_b_c").and_return(12).once.ordered
 
-        a.values.merge!('a' => 0, 'b' => 1)
-        b.values.merge!('b' => 2, 'c' => 3, 'd' => 4)
-        d.values.merge!('d' => 5, 'e' => 6)
-        assert_equal [12], d.each_value('b', true).to_a
+        a.values.merge!("a" => 0, "b" => 1)
+        b.values.merge!("b" => 2, "c" => 3, "d" => 4)
+        d.values.merge!("d" => 5, "e" => 6)
+        assert_equal [12], d.each_value("b", true).to_a
     end
 
     def test_inherited_attribute_mapping_promote_with_key_non_uniq
-	a = Class.new do
+        a = Class.new do
             class << self
                 extend MetaRuby::Attributes
-                def promote_value(key, v)
-                end
-                inherited_attribute(:value, :values, :map => true) { Hash.new }
+                def promote_value(key, v); end
+                inherited_attribute(:value, :values, map: true) { {} }
             end
-	end
-        b = flexmock(Class.new(a), 'b')
-        c = flexmock(Class.new(b), 'c')
-        d = flexmock(Class.new(c), 'd')
+        end
+        b = flexmock(Class.new(a), "b")
+        c = flexmock(Class.new(b), "c")
+        d = flexmock(Class.new(c), "d")
 
-        c.should_receive(:promote_value).with('b', 2).and_return("b2_b_c").once.ordered
-        d.should_receive(:promote_value).with('b', "b2_b_c").and_return(12).once.ordered
+        c.should_receive(:promote_value).with("b", 2).and_return("b2_b_c").once.ordered
+        d.should_receive(:promote_value).with("b",
+                                              "b2_b_c").and_return(12).once.ordered
 
-        b.should_receive(:promote_value).with('b', 1).and_return("b1_a_b").once.ordered
-        c.should_receive(:promote_value).with('b', "b1_a_b").and_return("b1_b_c").once.ordered
-        d.should_receive(:promote_value).with('b', "b1_b_c").and_return(11).once.ordered
+        b.should_receive(:promote_value).with("b", 1).and_return("b1_a_b").once.ordered
+        c.should_receive(:promote_value).with("b",
+                                              "b1_a_b").and_return("b1_b_c").once.ordered
+        d.should_receive(:promote_value).with("b",
+                                              "b1_b_c").and_return(11).once.ordered
 
-        a.values.merge!('a' => 0, 'b' => 1)
-        b.values.merge!('b' => 2, 'c' => 3, 'd' => 4)
-        d.values.merge!('d' => 5, 'e' => 6)
-        assert_equal [12, 11], d.each_value('b', false).to_a
+        a.values.merge!("a" => 0, "b" => 1)
+        b.values.merge!("b" => 2, "c" => 3, "d" => 4)
+        d.values.merge!("d" => 5, "e" => 6)
+        assert_equal [12, 11], d.each_value("b", false).to_a
     end
 end
 
 describe MetaRuby::Attributes do
     describe "#inherited_attribute" do
         attr_reader :meta, :base, :sub, :subsub
+
         before do
             @meta = Module.new do
                 extend MetaRuby::Attributes
-                inherited_attribute(:var, :vars) { Array.new }
+                inherited_attribute(:var, :vars) { [] }
             end
             @base = Class.new
             base.extend meta
@@ -233,6 +259,7 @@ describe MetaRuby::Attributes do
     end
     describe "#inherited_single_value_attribute" do
         attr_reader :base, :sub, :subsub
+
         describe "plain" do
             before do
                 meta = Module.new do
@@ -290,19 +317,25 @@ describe MetaRuby::Attributes do
             before do
                 meta = Module.new do
                     extend MetaRuby::Attributes
-                    def promote_var(value); value * 2 end
+                    def promote_var(value)
+                        value * 2
+                    end
                     inherited_single_value_attribute(:var)
                 end
                 @base = Class.new
                 base.extend meta
                 meta_sub = Module.new do
-                    def promote_var(value); value * 4 end
+                    def promote_var(value)
+                        value * 4
+                    end
                 end
                 @sub = Class.new(base)
                 sub.extend meta_sub
 
                 meta_subsub = Module.new do
-                    def promote_var(value); value - 10 end
+                    def promote_var(value)
+                        value - 10
+                    end
                 end
                 @subsub = Class.new(sub)
                 subsub.extend meta_subsub
@@ -320,20 +353,26 @@ describe MetaRuby::Attributes do
             before do
                 meta = Module.new do
                     extend MetaRuby::Attributes
-                    def promote_var(value); value * 2 end
+                    def promote_var(value)
+                        value * 2
+                    end
                     inherited_single_value_attribute(:var) { 10 }
                 end
                 @base = Class.new
                 base.extend meta
 
                 meta_sub = Module.new do
-                    def promote_var(value); value * 4 end
+                    def promote_var(value)
+                        value * 4
+                    end
                 end
                 @sub = Class.new(base)
                 sub.extend meta_sub
                 @subsub = Class.new(sub)
                 meta_subsub = Module.new do
-                    def promote_var(value); value - 10 end
+                    def promote_var(value)
+                        value - 10
+                    end
                 end
                 subsub.extend meta_subsub
             end
@@ -346,4 +385,3 @@ describe MetaRuby::Attributes do
         end
     end
 end
-

@@ -1,4 +1,4 @@
-require 'metaruby/test'
+require "metaruby/test"
 
 class Base
     extend MetaRuby::ModelAsClass
@@ -9,12 +9,18 @@ module DefinitionContext
 end
 
 module PermanentDefinitionContext
-    def self.permanent_model?; true end
+    def self.permanent_model?
+        true
+    end
+
     class Klass < Base; end
 end
 
 module NonPermanentDefinitionContext
-    def self.permanent_model?; false end
+    def self.permanent_model?
+        false
+    end
+
     class Klass < Base; end
 end
 
@@ -43,7 +49,7 @@ describe MetaRuby::ModelAsClass do
                 include MetaRuby::ModelAsClass
                 class_eval(&block) if block
             end
-            klass = Class.new { extend mod }
+            Class.new { extend mod }
         end
         it "should call setup_submodel only once" do
             klass = setup_model
@@ -57,13 +63,14 @@ describe MetaRuby::ModelAsClass do
         it "makes its 'name' argument accessible to the setup_submodel method" do
             klass = setup_model do
                 attr_accessor :setup_name
-                def setup_submodel(submodel, **options)
+
+                def setup_submodel(submodel, **_options)
                     submodel.setup_name = submodel.name
                 end
             end
-            submodel = klass.new_submodel(name: 'test')
-            assert_equal 'test', submodel.name
-            assert_equal 'test', submodel.setup_name
+            submodel = klass.new_submodel(name: "test")
+            assert_equal "test", submodel.name
+            assert_equal "test", submodel.setup_name
         end
     end
 
@@ -102,13 +109,13 @@ describe MetaRuby::ModelAsClass do
 
         it "returns the default name for the class" do
             DefinitionContext.const_set(:Test, klass)
-            assert_equal 'DefinitionContext::Test', DefinitionContext::Test.name
+            assert_equal "DefinitionContext::Test", DefinitionContext::Test.name
         end
 
         it "allows to override the class name" do
             DefinitionContext.const_set(:Test, klass)
             DefinitionContext::Test.name = "Test"
-            assert_equal 'Test', DefinitionContext::Test.name
+            assert_equal "Test", DefinitionContext::Test.name
         end
 
         it "behaves identically for an anonymous submodel of a parent model" do
@@ -117,32 +124,33 @@ describe MetaRuby::ModelAsClass do
             child = parent.new_submodel
             assert !child.name
             DefinitionContext.const_set(:Test, child)
-            assert_equal 'DefinitionContext::Test', child.name
+            assert_equal "DefinitionContext::Test", child.name
             child.name = "Test"
             assert_equal "Test", child.name
         end
         it "allows setting the name in #new_submodel" do
             parent = Class.new { extend MetaRuby::ModelAsClass }
             parent.name = "Parent"
-            child = parent.new_submodel(name: 'Child')
-            assert_equal 'Child', child.name
+            child = parent.new_submodel(name: "Child")
+            assert_equal "Child", child.name
         end
         it "does not set the name if the name argument is not given" do
             meta = Module.new do
                 include MetaRuby::ModelAsClass
                 def setup_submodel(submodel, **options)
                     super
-                    submodel.name = 'Test'
+                    submodel.name = "Test"
                 end
             end
             parent = Class.new { extend meta }
             child = parent.new_submodel
-            assert_equal 'Test', child.name
+            assert_equal "Test", child.name
         end
     end
-    
+
     describe "#supermodel" do
         attr_reader :base
+
         before do
             meta = Module.new do
                 include MetaRuby::ModelAsClass
@@ -162,6 +170,7 @@ describe MetaRuby::ModelAsClass do
 
     describe "providing models-as-module" do
         attr_reader :m, :klass
+
         before do
             @m = Module.new { extend MetaRuby::ModelAsModule }
             @klass = Class.new
@@ -182,6 +191,7 @@ describe MetaRuby::ModelAsClass do
 
     describe "#has_submodel?" do
         attr_reader :klass
+
         before do
             @klass = Class.new
             klass.extend MetaRuby::ModelAsClass
