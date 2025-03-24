@@ -1,8 +1,9 @@
-require 'metaruby/test'
+require "metaruby/test"
 
 class Constant
     extend MetaRuby::Registration
 end
+
 module Mod
     class Constant
         extend MetaRuby::Registration
@@ -36,14 +37,13 @@ describe MetaRuby::Registration do
         result = Class.new(ModelStub)
         result.permanent_model = false
         flexmock(result).should_receive(:supermodel).explicitly.and_return(parent_model).by_default
-        if parent_model
-            parent_model.register_submodel(result)
-        end
+        parent_model.register_submodel(result) if parent_model
         result
     end
 
     describe "#has_submodel?" do
         attr_reader :base_model
+
         before do
             @base_model = model_stub
         end
@@ -81,6 +81,7 @@ describe MetaRuby::Registration do
 
     describe "#register_submodel" do
         attr_reader :base_model
+
         before do
             @base_model = model_stub
         end
@@ -101,6 +102,7 @@ describe MetaRuby::Registration do
 
     describe "#each_submodel" do
         attr_reader :base_model
+
         before do
             @base_model = model_stub
         end
@@ -119,6 +121,7 @@ describe MetaRuby::Registration do
 
     describe "#deregister_submodels" do
         attr_reader :base_model, :sub_model
+
         before do
             @base_model = model_stub
             @sub_model = model_stub(base_model)
@@ -160,6 +163,7 @@ describe MetaRuby::Registration do
 
     describe "#clear_submodels" do
         attr_reader :base_model, :sub_model
+
         before do
             @base_model = model_stub
             @sub_model = model_stub(base_model)
@@ -239,6 +243,7 @@ describe MetaRuby::Registration do
 
     describe "#clear_model" do
         attr_reader :obj, :supermodel
+
         before do
             @obj = Class.new do
                 extend MetaRuby::Registration
@@ -271,12 +276,11 @@ describe MetaRuby::Registration do
 
     describe "#deregister_constant" do
         it "should deregister the object on the enclosing context" do
-            obj = flexmock(:basename => "Name", :spacename => "Test")
+            obj = flexmock(basename: "Name", spacename: "Test")
             context = flexmock
             flexmock(MetaRuby::Registration).should_receive(:constant).with("::Test").and_return(context)
-            context.should_receive(:remove_const).with('Name').once
+            context.should_receive(:remove_const).with("Name").once
             MetaRuby::Registration.deregister_constant(obj)
         end
     end
 end
-

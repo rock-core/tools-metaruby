@@ -1,5 +1,5 @@
-require 'set'
-require 'utilrb/module/dsl_attribute'
+require "set"
+require "utilrb/module/dsl_attribute"
 module MetaRuby
     # Basic functionality for attributes that are aware of inheritance
     #
@@ -58,7 +58,8 @@ module MetaRuby
 
             promotion_method = "promote_#{name}"
             if method_defined?(promotion_method)
-                define_single_value_with_promotion("#{dsl_attribute_name}_get", promotion_method, ivar)
+                define_single_value_with_promotion("#{dsl_attribute_name}_get",
+                                                   promotion_method, ivar)
             else
                 define_single_value_without_promotion("#{dsl_attribute_name}_get", ivar)
             end
@@ -85,14 +86,13 @@ module MetaRuby
                 ancestors = self.ancestors
                 EOCODE
             end
-                
 
         # @api private
         #
         # Helper method for {#inherited_single_value_attribute} in case there
         # are no promotion method(s) defined
         def define_single_value_without_promotion(method_name, ivar)
-            class_eval <<-EOF, __FILE__, __LINE__+1
+            class_eval <<-EOF, __FILE__, __LINE__ + 1
             def #{method_name}
                 #{ANCESTORS_ACCESS}
 
@@ -128,7 +128,7 @@ module MetaRuby
         # Helper method for {#inherited_single_value_attribute} in case there is
         # a promotion method defined
         def define_single_value_with_promotion(method_name, promotion_method_name, ivar)
-            class_eval <<-EOF, __FILE__, __LINE__+1
+            class_eval <<-EOF, __FILE__, __LINE__ + 1
             def #{method_name}
                 #{ANCESTORS_ACCESS}
 
@@ -171,7 +171,7 @@ module MetaRuby
         #
         # More specifically, it defines a <tt>each_#name(&iterator)</tt>
         # instance method and a <tt>each_#name(&iterator)</tt>
-        # class method which iterates (in order) on 
+        # class method which iterates (in order) on
         # - the instance #name attribute
         # - the singleton class #name attribute
         # - the class #name attribute
@@ -179,14 +179,14 @@ module MetaRuby
         # - the superclass' superclass #name attribute
         # ...
         #
-        # This method can be used on modules, in which case the module is used as if 
+        # This method can be used on modules, in which case the module is used as if
         # it was part of the inheritance hierarchy.
         #
         # The +name+ option defines the enumeration method name (+value+ will
         # define a +each_value+ method). +attribute_name+ defines the attribute
-        # name. +init+ is a block called to initialize the attribute. 
-        # Valid options in +options+ are: 
-        # map:: 
+        # name. +init+ is a block called to initialize the attribute.
+        # Valid options in +options+ are:
+        # map::
         #   If true, the attribute should respond to +[]+. In that case, the
         #   enumeration method is each_value(key = nil, uniq = false) If +key+ is
         #   given, we iterate on the values given by <tt>attribute[key]</tt>. If
@@ -221,17 +221,17 @@ module MetaRuby
         #       end
         #     end
         #   end
-        #   
+        #
         #   A.values << 1 # => [1]
         #   B.values << 2 # => [2]
         #   M.mod << 1 # => [1]
-        #   b = B.new 
+        #   b = B.new
         #   class << b
         #       self.values << 3 # => [3]
         #       self.mod << 4 # => [4]
         #   end
         #   M.mod << 2 # => [1, 2]
-        #   
+        #
         #   A.enum_for(:each_value).to_a # => [1]
         #   B.enum_for(:each_value).to_a # => [2, 1]
         #   b.singleton_class.enum_for(:each_value).to_a # => [3, 2, 1]
@@ -246,13 +246,13 @@ module MetaRuby
         #       end
         #     end
         #   end
-        #   
+        #
         #   A.map['name'] = 'A' # => "A"
         #   A.map['universe'] = 42
         #   B.map['name'] = 'B' # => "B"
         #   B.map['half_of_it'] = 21
-        #   
-        # Let's see what happens if we don't specify the key option.  
+        #
+        # Let's see what happens if we don't specify the key option.
         #   A.enum_for(:each_mapped).to_a # => [["name", "A"], ["universe", 42]]
         # If the +uniq+ option is set (the default), we see only B's value for 'name'
         #   B.enum_for(:each_mapped).to_a # => [["half_of_it", 21], ["name", "B"], ["universe", 42]]
@@ -275,13 +275,13 @@ module MetaRuby
 
             promote = method_defined?("promote_#{name}")
 
-            class_eval <<-EOF, __FILE__, __LINE__+1
+            class_eval <<-EOF, __FILE__, __LINE__ + 1
             def all_#{name}; each_#{name}.to_a end
             def self_#{name}; @#{attribute_name} end
             EOF
 
             if map
-                class_eval <<-EOF, __FILE__, __LINE__+1
+                class_eval <<-EOF, __FILE__, __LINE__ + 1
                 def find_#{name}(key)
                     raise ArgumentError, "nil cannot be used as a key in find_#{name}" if !key
                     each_#{name}(key, true) do |value|
@@ -300,14 +300,14 @@ module MetaRuby
                 end
                 EOF
             else
-                class_eval <<-EOF, __FILE__, __LINE__+1
+                class_eval <<-EOF, __FILE__, __LINE__ + 1
                 def has_#{name}?(key)
                     each_#{name}.any? { |obj| obj == key }
                 end
                 EOF
             end
 
-            class_eval <<-EOF, __FILE__, __LINE__+1
+            class_eval <<-EOF, __FILE__, __LINE__ + 1
             def clear_#{attribute_name}
                 #{attribute_name}.clear
                 for klass in ancestors
@@ -320,16 +320,18 @@ module MetaRuby
 
             if !promote
                 if map
-                    class_eval(*Attributes.map_without_promotion(name, attribute_name, yield_key: yield_key, enum_with: enum_with))
+                    class_eval(*Attributes.map_without_promotion(name, attribute_name,
+                                                                 yield_key: yield_key, enum_with: enum_with))
                 else
-                    class_eval(*Attributes.nomap_without_promotion(name, attribute_name, enum_with: enum_with))
+                    class_eval(*Attributes.nomap_without_promotion(name, attribute_name,
+                                                                   enum_with: enum_with))
                 end
+            elsif map
+                class_eval(*Attributes.map_with_promotion(name, attribute_name,
+                                                          yield_key: yield_key, enum_with: enum_with))
             else
-                if map
-                    class_eval(*Attributes.map_with_promotion(name, attribute_name, yield_key: yield_key, enum_with: enum_with))
-                else
-                    class_eval(*Attributes.nomap_with_promotion(name, attribute_name, enum_with: enum_with))
-                end
+                class_eval(*Attributes.nomap_with_promotion(name, attribute_name,
+                                                            enum_with: enum_with))
             end
         end
 
@@ -338,7 +340,9 @@ module MetaRuby
         # Helper class that defines the iteration method for inherited_attribute
         # when :map is set and there is not promotion method
         def self.map_without_promotion(name, attribute_name, yield_key: true, enum_with: :each)
-            code, file, line =<<-EOF, __FILE__, __LINE__+1
+            file = __FILE__
+            line = __LINE__ + 2
+            code = <<-EOF
             def each_#{name}(key = nil, uniq = true)
                 if !block_given?
                     return enum_for(:each_#{name}, key, uniq)
@@ -366,10 +370,10 @@ module MetaRuby
                     seen = Set.new
                     for klass in ancestors
                         if attr = klass.instance_variable_get(:@#{attribute_name})
-                            attr.#{enum_with} do |el_key, el| 
+                            attr.#{enum_with} do |el_key, el|#{' '}
                                 if !seen.include?(el_key)
                                     seen << el_key
-                                    #{if yield_key then 'yield(el_key, el)' else 'yield(el)' end}
+                                    #{yield_key ? 'yield(el_key, el)' : 'yield(el)'}
                                 end
                             end
                         end
@@ -379,7 +383,7 @@ module MetaRuby
                 self
             end
             EOF
-            return code, file, line
+            [code, file, line]
         end
 
         # @api private
@@ -387,7 +391,9 @@ module MetaRuby
         # Helper class that defines the iteration method for inherited_attribute
         # when :map is not set and there is no promotion method
         def self.nomap_without_promotion(name, attribute_name, enum_with: :each)
-            code, file, line =<<-EOF, __FILE__, __LINE__+1
+            file = __FILE__
+            line = __LINE__ + 2
+            code = <<-EOF
             def each_#{name}
                 return enum_for(__method__) if !block_given?
 
@@ -400,7 +406,7 @@ module MetaRuby
                 self
             end
             EOF
-            return code, file, line
+            [code, file, line]
         end
 
         # @api private
@@ -408,7 +414,9 @@ module MetaRuby
         # Helper class that defines the iteration method for inherited_attribute
         # when :map is set and there is a promotion method
         def self.map_with_promotion(name, attribute_name, yield_key: true, enum_with: :each)
-            code, file, line =<<-EOF, __FILE__, __LINE__+1
+            file = __FILE__
+            line = __LINE__ + 2
+            code = <<-EOF
             def each_#{name}(key = nil, uniq = true)
                 if !block_given?
                     return enum_for(:each_#{name}, key, uniq)
@@ -438,7 +446,7 @@ module MetaRuby
                                 for p in promotions
                                     v = p.promote_#{name}(k, v)
                                 end
-                                #{if yield_key then 'yield(k, v)' else 'yield(v)' end}
+                                #{yield_key ? 'yield(k, v)' : 'yield(v)'}
                             end
                         end
                         promotions.unshift(klass) if klass.respond_to?(:promote_#{name})
@@ -454,7 +462,7 @@ module MetaRuby
                                         v = p.promote_#{name}(k, v)
                                     end
                                     seen << k
-                                    #{if yield_key then 'yield(k, v)' else 'yield(v)' end}
+                                    #{yield_key ? 'yield(k, v)' : 'yield(v)'}
                                 end
                             end
                         end
@@ -464,7 +472,7 @@ module MetaRuby
                 self
             end
             EOF
-            return code, file, line
+            [code, file, line]
         end
 
         # @api private
@@ -472,7 +480,9 @@ module MetaRuby
         # Helper class that defines the iteration method for inherited_attribute
         # when :map is not set and there is a promotion method
         def self.nomap_with_promotion(name, attribute_name, enum_with: :each)
-            code, file, line =<<-EOF, __FILE__, __LINE__+1
+            file = __FILE__
+            line = __LINE__ + 2
+            code = <<-EOF
             def each_#{name}
                 if !block_given?
                     return enum_for(:each_#{name})
@@ -494,8 +504,7 @@ module MetaRuby
                 self
             end
             EOF
-            return code, file, line
+            [code, file, line]
         end
     end
 end
-

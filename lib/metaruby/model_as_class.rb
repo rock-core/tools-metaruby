@@ -41,22 +41,20 @@ module MetaRuby
         end
 
         def name
-            if @name then @name
-            else super
-            end
+            @name || super
         end
 
         # The model next in the ancestry chain, or nil if +self+ is root
         #
         # @return [Class]
         def supermodel
-            if superclass.respond_to?(:supermodel)
-                return superclass
-            end
+            return unless superclass.respond_to?(:supermodel)
+
+            superclass
         end
-        
+
         # This flag is used to notify {#inherited} that it is being called from
-        # new_submodel, in which case it should not 
+        # new_submodel, in which case it should not
         #
         # This mechanism works as:
         #   - inherited(subclass) is called right away after class.new is called
@@ -79,9 +77,7 @@ module MetaRuby
             model.instance_variable_set :@name, nil
             model.name = name if name
             setup_submodel(model, **submodel_options, &block)
-            if register
-                register_submodel(model)
-            end
+            register_submodel(model) if register
             model
         end
 
@@ -91,7 +87,7 @@ module MetaRuby
         end
 
         # Called at the end of the definition of a new submodel
-        def setup_submodel(submodel, register: true, **options, &block)
+        def setup_submodel(submodel, register: true, **_options, &block)
             submodel.apply_block(&block) if block
         end
 
@@ -100,20 +96,21 @@ module MetaRuby
             from_new_submodel = Thread.current[FROM_NEW_SUBMODEL_TLS]
             Thread.current[FROM_NEW_SUBMODEL_TLS] = false
 
-            subclass.definition_location = 
+            subclass.definition_location =
                 if MetaRuby.keep_definition_location?
                     caller_locations
-                else Array.new
+                else
+                    []
                 end
             subclass.instance_variable_set :@name, nil
             super
             subclass.permanent_model = subclass.accessible_by_name? &&
-                subclass.permanent_definition_context?
-            if !from_new_submodel
-                subclass.instance_variable_set :@name, nil
-                setup_submodel(subclass)
-                register_submodel(subclass)
-            end
+                                       subclass.permanent_definition_context?
+            return if from_new_submodel
+
+            subclass.instance_variable_set :@name, nil
+            setup_submodel(subclass)
+            register_submodel(subclass)
         end
 
         # Call to declare that this model provides the given model-as-module
@@ -132,4 +129,3 @@ module MetaRuby
         end
     end
 end
-

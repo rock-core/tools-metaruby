@@ -43,12 +43,12 @@ module MetaRuby
             def initialize(parent = nil)
                 super
 
-                @type_info = Hash.new
+                @type_info = {}
                 @browser_model = ModelHierarchy.new
-                @type_filters = Hash.new
+                @type_filters = {}
 
                 layout = Qt::VBoxLayout.new(self)
-                filter_button = Qt::PushButton.new('Filters', self)
+                filter_button = Qt::PushButton.new("Filters", self)
                 layout.add_widget(filter_button)
                 @btn_type_filter_menu = Qt::Menu.new
                 filter_button.menu = btn_type_filter_menu
@@ -66,15 +66,17 @@ module MetaRuby
             #   objects of this type
             # @param [Integer] priority if an object's ancestry matches multiple
             #   types, only the ones of the highest priority will be retained
-            def register_type(root_model, name, priority = 0, categories: [], resolver: ModelHierarchy::Resolver.new)
-                @browser_model.add_root(root_model, priority, categories: categories, resolver: resolver)
+            def register_type(root_model, name, priority = 0, categories: [],
+                resolver: ModelHierarchy::Resolver.new)
+                @browser_model.add_root(root_model, priority, categories: categories,
+                                                              resolver: resolver)
                 type_info[root_model] = name
                 action = Qt::Action.new(name, self)
                 action.checkable = true
                 action.checked = true
                 type_filters[root_model] = action
                 btn_type_filter_menu.add_action(action)
-                connect(action, SIGNAL('triggered()')) do
+                connect(action, SIGNAL("triggered()")) do
                     update_model_filter
                 end
             end
@@ -95,9 +97,7 @@ module MetaRuby
             # Update {#model_filter} to match the current filter setup
             def update_model_filter
                 type_rx = type_filters.map do |model_base, act|
-                    if act.checked?
-                        type_info[model_base]
-                    end
+                    type_info[model_base] if act.checked?
                 end
                 type_rx = type_rx.compact.join(",|,")
 
@@ -111,7 +111,7 @@ module MetaRuby
                 # The pattern has to match every element in the hierarchy. We
                 # achieve this by making the suffix part optional
                 name_rx = filter_box.text.downcase.gsub(/:+/, "/")
-                name_rx = '[^;]*,[^,]*' + name_rx.split('/').join("[^,]*,[^;]*;[^;]*,") + '[^,]*,[^;]*'
+                name_rx = "[^;]*,[^,]*" + name_rx.split("/").join("[^,]*,[^;]*;[^;]*,") + "[^,]*,[^;]*"
                 regexp = Qt::RegExp.new("(,#{type_rx},)[^;]*;([^;]*;)*#{name_rx}")
                 regexp.case_sensitivity = Qt::CaseInsensitive
                 model_filter.filter_reg_exp = regexp
@@ -132,7 +132,7 @@ module MetaRuby
             def model_item_from_filter_row(row, parent = Qt::ModelIndex.new)
                 filter_index = model_filter.index(row, 0, parent)
                 model_index  = model_filter.map_to_source(filter_index)
-                return browser_model.item_from_index(model_index), filter_index
+                [browser_model.item_from_index(model_index), filter_index]
             end
 
             def dump_filtered_item_model(parent = Qt::ModelIndex.new, indent = "")
@@ -149,19 +149,21 @@ module MetaRuby
             #   children is lower than this threshold
             def auto_open(threshold = 5)
                 current_level = [Qt::ModelIndex.new]
-                while !current_level.empty?
+                until current_level.empty?
                     count = current_level.inject(0) do |total, index|
                         total + model_filter.rowCount(index)
                     end
                     close_this_level = (count > threshold)
                     current_level.each do |index|
                         model_filter.rowCount(index).times.each do |row|
-                            model_list.setExpanded(model_filter.index(row, 0, index), !close_this_level)
+                            model_list.setExpanded(model_filter.index(row, 0, index),
+                                                   !close_this_level)
                         end
                     end
                     return if close_this_level
 
-                    last_level, current_level = current_level, []
+                    last_level = current_level
+                    current_level = []
                     last_level.each do |index|
                         model_filter.rowCount(index).times.each do |row|
                             current_level << model_filter.index(row, 0, index)
@@ -172,8 +174,9 @@ module MetaRuby
 
             class ModelPathCompleter < Qt::Completer
                 def splitPath(path)
-                    path.split('/')
+                    path.split("/")
                 end
+
                 def pathFromIndex(index)
                     index.data(Qt::UserRole).to_string.split(";").last
                 end
@@ -183,28 +186,28 @@ module MetaRuby
             #
             # Helper method for {#select_first_item}
             def all_leaves(model, limit = nil, item = Qt::ModelIndex.new, result = [])
-                if !model.hasChildren(item)
+                unless model.hasChildren(item)
                     result << item
                     return result
                 end
 
-                row, child_item = 0, model.index(0, 0, item)
+                row = 0
+                child_item = model.index(0, 0, item)
                 while child_item.valid?
                     all_leaves(model, limit, child_item, result)
-                    if limit && result.size == limit
-                        return result
-                    end
+                    return result if limit && result.size == limit
+
                     row += 1
                     child_item = model.index(row, 0, item)
                 end
-                return result
+                result
             end
 
             # Select the first displayed item
             def select_first_item
-                if item = all_leaves(model_filter, 1).first
-                    model_list.setCurrentIndex(item)
-                end
+                return unless item = all_leaves(model_filter, 1).first
+
+                model_list.setCurrentIndex(item)
             end
 
             # @api private
@@ -221,10 +224,10 @@ module MetaRuby
                 model_list.model = model_filter
 
                 @filter_box = Qt::LineEdit.new(self)
-                filter_box.connect(SIGNAL('textChanged(QString)')) do |text|
+                filter_box.connect(SIGNAL("textChanged(QString)")) do |_text|
                     update_model_filter
                 end
-                filter_box.connect(SIGNAL('returnPressed()')) do |text|
+                filter_box.connect(SIGNAL("returnPressed()")) do |_text|
                     select_first_item
                 end
                 @filter_completer = ModelPathCompleter.new(browser_model, self)
@@ -233,14 +236,14 @@ module MetaRuby
                 layout.add_widget(filter_box)
                 layout.add_widget(model_list)
 
-                model_list.selection_model.connect(SIGNAL('currentChanged(const QModelIndex&, const QModelIndex&)')) do |index, _|
+                model_list.selection_model.connect(SIGNAL("currentChanged(const QModelIndex&, const QModelIndex&)")) do |index, _|
                     index = model_filter.map_to_source(index)
                     if model = browser_model.find_model_from_index(index)
                         emit model_selected(Qt::Variant.from_ruby(model, model))
                     end
                 end
             end
-            signals 'model_selected(QVariant)'
+            signals "model_selected(QVariant)"
 
             # Reload the object model, keeping the current selection if possible
             def reload
@@ -259,10 +262,10 @@ module MetaRuby
             # Resets the current filter
             def reset_filter
                 # If there is a filter, reset it and try again
-                if !filter_box.text.empty?
-                    filter_box.text = ""
-                    true
-                end
+                return if filter_box.text.empty?
+
+                filter_box.text = ""
+                true
             end
 
             # Maps a model index from the source index to the filtered index,
@@ -279,14 +282,14 @@ module MetaRuby
             def map_index_from_source(source_index, reset_filter: true)
                 index = model_filter.map_from_source(source_index)
                 if !index
-                    return
+                    nil
                 elsif !index.valid?
-                    if !reset_filter
-                        return index
-                    end
+                    return index unless reset_filter
+
                     self.reset_filter
                     model_filter.map_from_source(source_index)
-                else index
+                else
+                    index
                 end
             end
 
@@ -296,11 +299,11 @@ module MetaRuby
             # @return [Boolean] true if the path resolved to something known,
             #   and false otherwise
             def select_by_path(*path)
-                if index = browser_model.find_index_by_path(*path)
-                    index = map_index_from_source(index)
-                    model_list.current_index = index
-                    true
-                end
+                return unless index = browser_model.find_index_by_path(*path)
+
+                index = map_index_from_source(index)
+                model_list.current_index = index
+                true
             end
 
             # Selects the given model if it registered in the model list
@@ -309,11 +312,11 @@ module MetaRuby
             # @return [Boolean] true if the path resolved to something known,
             #   and false otherwise
             def select_by_model(model)
-                if index = browser_model.find_index_by_model(model)
-                    index = map_index_from_source(index)
-                    model_list.current_index = index
-                    true
-                end
+                return unless index = browser_model.find_index_by_model(model)
+
+                index = map_index_from_source(index)
+                model_list.current_index = index
+                true
             end
 
             # Returns the currently selected item
@@ -321,10 +324,10 @@ module MetaRuby
             #   selections
             def current_selection
                 index = model_list.selection_model.current_index
-                if index.valid?
-                    index = model_filter.map_to_source(index)
-                    browser_model.find_model_from_index(index)
-                end
+                return unless index.valid?
+
+                index = model_filter.map_to_source(index)
+                browser_model.find_model_from_index(index)
             end
 
             def object_paths

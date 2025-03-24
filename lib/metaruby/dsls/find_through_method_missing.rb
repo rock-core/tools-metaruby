@@ -1,4 +1,4 @@
-require 'metaruby/attributes'
+require "metaruby/attributes"
 
 module MetaRuby
     module DSLs
@@ -41,13 +41,11 @@ module MetaRuby
         module FindThroughMethodMissing
             # Empty implementation of has_through_method_missing? to allow for
             # classes to call 'super'
-            def has_through_method_missing?(m)
-            end
+            def has_through_method_missing?(m); end
 
             # Empty implementation of find_through_method_missing to allow for
             # classes to call 'super'
-            def find_through_method_missing(m, args)
-            end
+            def find_through_method_missing(m, args); end
 
             # Resolves the given method using {#has_through_method_missing?}
             def respond_to_missing?(m, include_private)

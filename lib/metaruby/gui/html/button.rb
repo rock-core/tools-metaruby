@@ -32,10 +32,11 @@ module MetaRuby
                 # @param [String] off_text the button text for a toggling button
                 #   when it is OFF
                 # @param [Boolean] state the initial button state
-                def initialize(id, text: nil, on_text: "#{id} (on)", off_text: "#{id} (off)", state: false)
-                    if id[0, 1] != '/'
+                def initialize(id, text: nil, on_text: "#{id} (on)",
+                    off_text: "#{id} (off)", state: false)
+                    if id[0, 1] != "/"
                         id = "/#{id}"
-                    elsif id[-1, 1] == '/'
+                    elsif id[-1, 1] == "/"
                         id = id[0..-2]
                     end
                     @id = id
@@ -55,32 +56,39 @@ module MetaRuby
                 # The ID, quoted for HTML
                 #
                 # @return [String]
-                def html_id; id.gsub(/[^\w]/, '_') end
+                def html_id
+                    id.gsub(/[^\w]/, "_")
+                end
 
                 # The button base URL
                 #
                 # @return [String]
-                def base_url; "btn://metaruby#{id}" end
+                def base_url
+                    "btn://metaruby#{id}"
+                end
 
                 # The URL that would toggle the button (i.e. turn it off if it
                 # is ON)
                 def toggle_url
                     if state then "#{base_url}#off"
-                    else "#{base_url}#on"
+                    else
+                        "#{base_url}#on"
                     end
                 end
 
                 # The URL that represents this button and its current state
                 def url
                     if state then "#{base_url}#on"
-                    else "#{base_url}#off"
+                    else
+                        "#{base_url}#off"
                     end
                 end
 
                 # The button text
                 def text
                     if state then off_text
-                    else on_text
+                    else
+                        on_text
                     end
                 end
 
@@ -97,11 +105,10 @@ module MetaRuby
             # @param [Array<Button>] buttons
             # @return [String]
             def self.render_button_bar(buttons)
-                if !buttons.empty?
-                    "<div class=\"button_bar\"><span>#{buttons.map(&:render).join(" / ")}</span></div>"
-                end
+                return if buttons.empty?
+
+                "<div class=\"button_bar\"><span>#{buttons.map(&:render).join(' / ')}</span></div>"
             end
         end
     end
 end
-

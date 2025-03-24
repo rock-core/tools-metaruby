@@ -22,7 +22,7 @@ module MetaRuby
             def initialize(page = nil)
                 super()
                 @page = page
-                @available_renderers = Hash.new
+                @available_renderers = {}
             end
 
             # A list of exceptions that happened during rendering
@@ -31,7 +31,8 @@ module MetaRuby
             def registered_exceptions
                 if current_renderer.respond_to?(:registered_exceptions)
                     current_renderer.registered_exceptions
-                else []
+                else
+                    []
                 end
             end
 
@@ -50,14 +51,14 @@ module MetaRuby
             #   {ModelBrowser}
             # @param [Hash] render_options a set of options that must be passed
             #   to the renderer's #render method
-            def register_type(type, rendering_class, render_options = Hash.new)
+            def register_type(type, rendering_class, render_options = {})
                 render = if rendering_class.kind_of?(Class)
                              rendering_class.new(page)
                          else
                              rendering_class
                          end
                 available_renderers[type] = [render, render_options]
-                connect(render, SIGNAL('updated()'), self, SIGNAL('updated()'))
+                connect(render, SIGNAL("updated()"), self, SIGNAL("updated()"))
             end
 
             # Changes on which page this rendering manager should act

@@ -35,9 +35,9 @@ module MetaRuby
         # @param [String] name the name to validate
         # @raise [ArgumentError] if the name cannot be used as a constant name
         def self.validate_constant_name(name)
-            if name !~ /^[A-Z]\w+$/
-                raise ArgumentError, "#{name} is not a valid model name"
-            end
+            return unless name !~ /^[A-Z]\w+$/
+
+            raise ArgumentError, "#{name} is not a valid model name"
         end
 
         # Common method that can be used to create and register a
@@ -66,9 +66,10 @@ module MetaRuby
             else
                 model = base_model.new_submodel(*args, **kw, &block)
                 namespace.const_set(name, model)
-                model.permanent_model = if !namespace.respond_to?(:permanent_model?)
+                model.permanent_model = if namespace.respond_to?(:permanent_model?)
+                                            namespace.permanent_model?
+                                        else
                                             Registration.accessible_by_name?(namespace)
-                                        else namespace.permanent_model?
                                         end
             end
 
@@ -101,9 +102,7 @@ module MetaRuby
         end
 
         def name
-            if @name then @name
-            else super
-            end
+            @name || super
         end
 
         def self.extend_object(obj)
@@ -128,7 +127,8 @@ module MetaRuby
             model.definition_location =
                 if MetaRuby.keep_definition_location?
                     caller_locations
-                else []
+                else
+                    []
                 end
             setup_submodel(model, **submodel_options, &block)
             model
@@ -148,9 +148,7 @@ module MetaRuby
         # call.
         def clear_model
             super
-            if supermodel
-                supermodel.deregister_submodels([self])
-            end
+            supermodel.deregister_submodels([self]) if supermodel
             @supermodel = nil
             parent_models.clear
         end
@@ -177,24 +175,25 @@ module MetaRuby
 
             model_root =
                 if model.root? then model
-                else model.supermodel
+                else
+                    model.supermodel
                 end
 
             if !supermodel
                 self.supermodel = model_root
-                self.supermodel.register_submodel(self)
+                supermodel.register_submodel(self)
             elsif supermodel != model_root
                 if model_root.provides?(supermodel)
                     self.supermodel = model_root
                 elsif !supermodel.provides?(model_root)
-                    raise ArgumentError, "#{model}'s root is #{model_root} while #{self} is #{supermodel}, which are unrelated"
+                    raise ArgumentError,
+                          "#{model}'s root is #{model_root} while #{self} is #{supermodel}, which are unrelated"
                 end
-                self.supermodel.register_submodel(self)
+                supermodel.register_submodel(self)
             end
 
-            self.parent_models.merge(model.parent_models)
-            self.parent_models << model
+            parent_models.merge(model.parent_models)
+            parent_models << model
         end
     end
 end
-

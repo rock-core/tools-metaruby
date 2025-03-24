@@ -91,10 +91,10 @@ module MetaRuby
             def initialize(main = nil, exception_view: nil)
                 super(main)
 
-                @available_renderers = Hash.new
-                @registered_exceptions = Array.new
+                @available_renderers = {}
+                @registered_exceptions = []
 
-                @history = Array.new
+                @history = []
                 @history_index = -1
 
                 @manager = RenderingManager.new
@@ -106,7 +106,8 @@ module MetaRuby
                 @central_splitter = Qt::Splitter.new(vertical_splitter)
                 @exception_view = (exception_view ||= ExceptionView.new)
                 exception_view.parent = vertical_splitter
-                connect(exception_view, SIGNAL('fileOpenClicked(const QUrl&)'), self, SLOT('fileOpenClicked(const QUrl&)'))
+                connect(exception_view, SIGNAL("fileOpenClicked(const QUrl&)"), self,
+                        SLOT("fileOpenClicked(const QUrl&)"))
                 add_central_widgets(central_splitter)
 
                 vertical_splitter.add_widget(central_splitter)
@@ -121,9 +122,9 @@ module MetaRuby
             #
             # @param [Qt::Settings] settings
             def restore_from_settings(settings)
-                %w{central_splitter vertical_splitter}.each do |object_name|
+                %w[central_splitter vertical_splitter].each do |object_name|
                     sizes = settings.value(object_name)
-                    if !sizes.null?
+                    unless sizes.null?
                         sizes = sizes.to_list.map do |obj|
                             obj.to_int
                         end
@@ -136,7 +137,7 @@ module MetaRuby
             #
             # @param [Qt::Settings] settings
             def save_to_settings(settings)
-                %w{central_splitter vertical_splitter}.each do |object_name|
+                %w[central_splitter vertical_splitter].each do |object_name|
                     sizes = send(object_name).sizes
                     sizes = sizes.map { |o| Qt::Variant.new(o) }
                     settings.set_value(object_name, Qt::Variant.new(sizes))
@@ -170,10 +171,12 @@ module MetaRuby
             #   models might be submodels of various types at the same time (as
             #   e.g. when both a model and its supermodel are registered here).
             #   The one with the highest priority will be used.
-            def register_type(root_model, rendering_class, name, priority = 0, categories: [], resolver: ModelHierarchy::Resolver.new)
+            def register_type(root_model, rendering_class, name, priority = 0,
+                categories: [], resolver: ModelHierarchy::Resolver.new)
                 model_selector.register_type(
                     root_model, name, priority,
-                    categories: categories, resolver: resolver)
+                    categories: categories, resolver: resolver
+                )
                 manager.register_type(root_model, rendering_class)
             end
 
@@ -223,16 +226,21 @@ module MetaRuby
             # @param [Page] page the new page object
             def page=(page)
                 if @page
-                    disconnect(@page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
-                    disconnect(@page, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
-                    disconnect(@page, SIGNAL('fileOpenClicked(const QUrl&)'), self, SLOT('fileOpenClicked(const QUrl&)'))
+                    disconnect(@page, SIGNAL("linkClicked(const QUrl&)"), self,
+                               SLOT("linkClicked(const QUrl&)"))
+                    disconnect(@page, SIGNAL("updated()"), self,
+                               SLOT("update_exceptions()"))
+                    disconnect(@page, SIGNAL("fileOpenClicked(const QUrl&)"), self,
+                               SLOT("fileOpenClicked(const QUrl&)"))
                 end
                 manager.page = page
 
-                connect(page, SIGNAL('linkClicked(const QUrl&)'), self, SLOT('linkClicked(const QUrl&)'))
-                connect(page, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
-                connect(page, SIGNAL('fileOpenClicked(const QUrl&)'), self, SLOT('fileOpenClicked(const QUrl&)'))
-                connect(manager, SIGNAL('updated()'), self, SLOT('update_exceptions()'))
+                connect(page, SIGNAL("linkClicked(const QUrl&)"), self,
+                        SLOT("linkClicked(const QUrl&)"))
+                connect(page, SIGNAL("updated()"), self, SLOT("update_exceptions()"))
+                connect(page, SIGNAL("fileOpenClicked(const QUrl&)"), self,
+                        SLOT("fileOpenClicked(const QUrl&)"))
+                connect(manager, SIGNAL("updated()"), self, SLOT("update_exceptions()"))
                 @page = page
             end
 
@@ -255,7 +263,7 @@ module MetaRuby
             def render_model(mod, **options)
                 page.clear
                 @registered_exceptions.clear
-                reference_model, _ = manager.find_renderer(mod)
+                reference_model, = manager.find_renderer(mod)
                 if mod
                     page.title = "#{mod.name} (#{reference_model.name})"
                     begin
@@ -272,22 +280,22 @@ module MetaRuby
             # Updates {#exception_view} from the set of registered exceptions
             def update_exceptions
                 exception_view.exceptions = registered_exceptions +
-                    manager.registered_exceptions
+                                            manager.registered_exceptions
             end
-            slots 'update_exceptions()'
+            slots "update_exceptions()"
 
             # (see ModelSelector#select_by_model)
             def select_by_path(*path)
-                if model_selector.select_by_path(*path)
-                    push_to_history(path)
-                end
+                return unless model_selector.select_by_path(*path)
+
+                push_to_history(path)
             end
 
             # (see ModelSelector#select_by_model)
             def select_by_model(model)
-                if model_selector.select_by_model(model)
-                    push_to_history(model)
-                end
+                return unless model_selector.select_by_model(model)
+
+                push_to_history(model)
             end
 
             # (see ModelSelector#current_selection)
@@ -309,6 +317,7 @@ module MetaRuby
             # Go forward in the browsing history
             def forward
                 return if history_index == history.size - 1
+
                 @history_index += 1
                 select_by_history_element(history[history_index])
             end
@@ -316,6 +325,7 @@ module MetaRuby
             # Go back in the browsing history
             def back
                 return if history_index <= 0
+
                 @history_index -= 1
                 select_by_history_element(history[history_index])
             end
@@ -326,7 +336,8 @@ module MetaRuby
             def select_by_history_element(h)
                 if h.respond_to?(:to_ary)
                     select_by_path(*h)
-                else select_by_model(h)
+                else
+                    select_by_model(h)
                 end
             end
 

@@ -1,4 +1,4 @@
-require 'metaruby/test'
+require "metaruby/test"
 
 module ResolvableContext
 end
@@ -7,6 +7,7 @@ describe MetaRuby::ModelAsModule do
     include MetaRuby::SelfTest
 
     attr_reader :root_m
+
     before do
         @root_m = Module.new { extend MetaRuby::ModelAsModule }
     end
@@ -19,8 +20,8 @@ describe MetaRuby::ModelAsModule do
             assert_equal root_m, submodel.supermodel
         end
         it "sets root_model to the provided model's supermodel if the provided model is not root itself" do
-            flexmock(root_m).should_receive(:supermodel).once.
-                and_return(root = flexmock)
+            flexmock(root_m).should_receive(:supermodel).once
+                            .and_return(root = flexmock)
             submodel = Module.new { extend MetaRuby::ModelAsModule }
             root.should_receive(:register_submodel).with(submodel).once
             submodel.provides root_m
@@ -83,62 +84,78 @@ describe MetaRuby::ModelAsModule do
             meta = Class.new(Module) do
                 include MetaRuby::ModelAsModule
                 attr_accessor :setup_name
-                def setup_submodel(submodel, **options)
+
+                def setup_submodel(submodel, **_options)
                     submodel.setup_name = submodel.name
                 end
             end
             root = meta.new do
                 self.root = true
             end
-            submodel = root.new_submodel(name: 'test')
-            assert_equal 'test', submodel.name
-            assert_equal 'test', submodel.setup_name
+            submodel = root.new_submodel(name: "test")
+            assert_equal "test", submodel.name
+            assert_equal "test", submodel.setup_name
         end
     end
 
     describe "#create_and_register_submodel" do
         attr_reader :definition_context, :base_m
+
         before do
             @definition_context = Module.new
             @base_m = Module.new do
                 extend MetaRuby::ModelAsModule
-                def self.root?; true end
+                def self.root?
+                    true
+                end
             end
         end
 
         it "should set permanent_model to true if the enclosing module is a Ruby module that is accessible by name" do
             flexmock(MetaRuby::Registration).should_receive(:accessible_by_name?).once.with(definition_context).and_return(true)
-            result = MetaRuby::ModelAsModule.create_and_register_submodel(definition_context, 'Test', base_m)
+            result = MetaRuby::ModelAsModule.create_and_register_submodel(
+                definition_context, "Test", base_m
+            )
             assert result.permanent_model?
         end
         it "should set permanent_model to false if the enclosing module is a Ruby module that is not accessible by name" do
             flexmock(MetaRuby::Registration).should_receive(:accessible_by_name?).once.with(definition_context).and_return(false)
-            result = MetaRuby::ModelAsModule.create_and_register_submodel(definition_context, 'Test', base_m)
+            result = MetaRuby::ModelAsModule.create_and_register_submodel(
+                definition_context, "Test", base_m
+            )
             assert !result.permanent_model?
         end
         it "should set permanent_model to true if the enclosing module is permanent" do
             flexmock(definition_context).should_receive(:permanent_model?).explicitly.and_return(true)
-            result = MetaRuby::ModelAsModule.create_and_register_submodel(definition_context, 'Test', base_m)
+            result = MetaRuby::ModelAsModule.create_and_register_submodel(
+                definition_context, "Test", base_m
+            )
             assert result.permanent_model?
         end
         it "should set permanent_model to false if the enclosing module is non-permanent" do
             flexmock(definition_context).should_receive(:permanent_model?).explicitly.and_return(false)
-            result = MetaRuby::ModelAsModule.create_and_register_submodel(definition_context, 'Test', base_m)
+            result = MetaRuby::ModelAsModule.create_and_register_submodel(
+                definition_context, "Test", base_m
+            )
             assert !result.permanent_model?
         end
         it "calls setup_submodel on an already registered constant" do
-            definition_context.const_set('Test', base_m.new_submodel)
+            definition_context.const_set("Test", base_m.new_submodel)
             flexmock(base_m).should_receive(:setup_submodel).once.pass_thru
-            MetaRuby::ModelAsModule.create_and_register_submodel(definition_context, 'Test', base_m)
+            MetaRuby::ModelAsModule.create_and_register_submodel(definition_context,
+                                                                 "Test", base_m)
         end
     end
 
     describe "#name" do
         attr_reader :base_m
+
         before do
             @base_m = Module.new do
                 extend MetaRuby::ModelAsModule
-                def self.root?; true end
+                def self.root?
+                    true
+                end
             end
         end
 
@@ -170,7 +187,7 @@ describe MetaRuby::ModelAsModule do
         end
 
         it "can be set in #new_submodel" do
-            test_m = base_m.new_submodel(name: 'Override')
+            test_m = base_m.new_submodel(name: "Override")
             ResolvableContext.const_set :Test, test_m
             assert_equal "Override", test_m.name
         end
@@ -178,6 +195,7 @@ describe MetaRuby::ModelAsModule do
 
     describe "#clear_model" do
         attr_reader :root_m, :model_m
+
         before do
             @root_m = Module.new do
                 extend MetaRuby::ModelAsModule
@@ -203,6 +221,7 @@ describe MetaRuby::ModelAsModule do
 
     describe "#has_submodel?" do
         attr_reader :root_m
+
         before do
             @root_m = Module.new do
                 extend MetaRuby::ModelAsModule
@@ -236,4 +255,3 @@ describe MetaRuby::ModelAsModule do
         end
     end
 end
-

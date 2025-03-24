@@ -1,5 +1,5 @@
 class Module
-    if !method_defined?(:singleton_class?)
+    unless method_defined?(:singleton_class?)
         # It so happens that this method to determine whether a class is a
         # singleton class is valid for ruby 2.0 and breaks on 2.1 ... However
         # (!) on 2.1 singleton_class? is defined

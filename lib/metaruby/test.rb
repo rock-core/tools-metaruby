@@ -1,31 +1,29 @@
 # simplecov must be loaded FIRST. Only the files required after it gets loaded
 # will be profiled !!!
-if ENV['TEST_ENABLE_COVERAGE'] == '1'
+if ENV["TEST_ENABLE_COVERAGE"] == "1"
     begin
-        require 'simplecov'
+        require "simplecov"
         SimpleCov.start do
             add_filter "test"
         end
     rescue LoadError
-        require 'metaruby'
+        require "metaruby"
         MetaRuby.warn "coverage is disabled because the 'simplecov' gem cannot be loaded"
     rescue Exception => e
-        require 'metaruby'
+        require "metaruby"
         MetaRuby.warn "coverage is disabled: #{e.message}"
     end
 end
 
-require 'metaruby'
-require 'minitest/autorun'
-require 'minitest/spec'
-require 'flexmock/minitest'
+require "metaruby"
+require "minitest/autorun"
+require "minitest/spec"
+require "flexmock/minitest"
 
-if ENV['TEST_ENABLE_PRY'] != '0'
+if ENV["TEST_ENABLE_PRY"] != "0"
     begin
-        require 'pry'
-        if ENV['TEST_DEBUG'] == '1'
-            require 'pry-rescue/minitest'
-        end
+        require "pry"
+        require "pry-rescue/minitest" if ENV["TEST_DEBUG"] == "1"
     rescue Exception
         MetaRuby.warn "debugging is disabled because the 'pry' gem cannot be loaded"
     end
@@ -47,16 +45,13 @@ module MetaRuby
     #
     module SelfTest
         # Common setup code for all metaruby tests
-        def setup
-        end
+        def setup; end
 
         # Common teardown code for all metaruby tests
-        def teardown
-        end
+        def teardown; end
     end
 end
 
 class Minitest::Test
     include MetaRuby::SelfTest
 end
-

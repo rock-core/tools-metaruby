@@ -14,7 +14,7 @@ module MetaRuby
         class ExceptionRendering
             # The directory relative to which ressources (such as css or javascript
             # files) are resolved by default
-            RESSOURCES_DIR = File.expand_path('html', File.dirname(__FILE__))
+            RESSOURCES_DIR = File.expand_path("html", File.dirname(__FILE__))
 
             # @return [#link_to] an object that allows to render a link to an
             #   object
@@ -151,9 +151,11 @@ module MetaRuby
             #
             # @param [Array<(String,Integer,Symbol)>] parsed_backtrace the parsed backtrace
             # @param [Array<(String,Integer,Symbol)>] raw_backtrace the raw backtrace
-            def filter_backtrace(parsed_backtrace, raw_backtrace)
+            def filter_backtrace(parsed_backtrace, _raw_backtrace)
                 head = parsed_backtrace.take_while { |file, _| !user_file?(file) }
-                tail = parsed_backtrace[head.size..-1].find_all { |file, _| user_file?(file) }
+                tail = parsed_backtrace[head.size..-1].find_all do |file, _|
+                    user_file?(file)
+                end
                 head + tail
             end
 
@@ -185,14 +187,15 @@ module MetaRuby
             #   (see {#each_exception_from}), a -#counter pattern is added to
             #   the ID.
             # @return [String]
-            def render(e, reason = nil, id = allocate_exception_id)
+            def render(e, _reason = nil, id = allocate_exception_id)
                 counter = 0
                 html = []
                 seen = Set.new
                 each_exception_from(e) do |exception|
-                    if !seen.include?(exception)
+                    unless seen.include?(exception)
                         seen << exception
-                        html << render_single_exception(exception, "#{id}-#{counter += 1}")
+                        html << render_single_exception(exception,
+                                                        "#{id}-#{counter += 1}")
                     end
                 end
                 html.join("\n")
@@ -207,7 +210,8 @@ module MetaRuby
             #
             # @yieldparam [Exception] exception an exception
             def each_exception_from(e)
-                return enum_for(__method__) if !block_given?
+                return enum_for(__method__) unless block_given?
+
                 yield(e)
             end
 
@@ -225,7 +229,7 @@ module MetaRuby
                 if filtered_backtrace.first.respond_to?(:to_str)
                     filtered_backtrace = ExceptionRendering.parse_backtrace(filtered_backtrace)
                 end
-                return full_backtrace, filtered_backtrace
+                [full_backtrace, filtered_backtrace]
             end
 
             # @api private
@@ -244,16 +248,17 @@ module MetaRuby
                 full_backtrace, filtered_backtrace =
                     parse_and_filter_backtrace(e.backtrace || [])
 
-                unless full_backtrace.empty?
+                if full_backtrace.empty?
+                    ERB.new(EXCEPTION_TEMPLATE_WITHOUT_BACKTRACE).result(binding)
+                else
                     origin_file, origin_line, origin_method =
                         filtered_backtrace.find { |file, _| user_file?(file) } ||
                         filtered_backtrace.first ||
                         full_backtrace.first
 
-                    origin_file = linker.link_to(Pathname.new(origin_file), origin_file, lineno: origin_line)
+                    origin_file = linker.link_to(Pathname.new(origin_file), origin_file,
+                                                 lineno: origin_line)
                     ERB.new(EXCEPTION_TEMPLATE_WITH_BACKTRACE).result(binding)
-                else
-                    ERB.new(EXCEPTION_TEMPLATE_WITHOUT_BACKTRACE).result(binding)
                 end
             end
 
@@ -278,4 +283,3 @@ module MetaRuby
         end
     end
 end
-

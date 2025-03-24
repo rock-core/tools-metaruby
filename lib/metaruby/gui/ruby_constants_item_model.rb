@@ -9,7 +9,8 @@ module MetaRuby
         # Discovery starts at Object
         class RubyConstantsItemModel < Qt::AbstractItemModel
             # Stored per-module information test
-            ModuleInfo = Struct.new :id, :name, :this, :parent, :children, :row, :types, :full_name, :keyword_string, :path
+            ModuleInfo = Struct.new :id, :name, :this, :parent, :children, :row, :types,
+                                    :full_name, :keyword_string, :path
 
             # Information about different model types
             TypeInfo   = Struct.new :name, :priority, :color
@@ -30,7 +31,7 @@ module MetaRuby
             # Note that such objects are not discovered at all, meaning that if
             # they contain objects that should have been discovered, they won't
             # be.
-            # 
+            #
             # @return [Set]
             attr_reader :excludes
 
@@ -64,7 +65,7 @@ module MetaRuby
             #
             # @param [Hash] type_info value for {#type_info}
             # @param [#call] predicate the filter {#predicate}
-            def initialize(type_info = Hash.new, &predicate)
+            def initialize(type_info = {}, &predicate)
                 super()
                 @predicate = predicate || proc { true }
                 @type_info = type_info
@@ -73,7 +74,7 @@ module MetaRuby
 
                 @id_to_module = []
                 @filtered_out_modules = Set.new
-                @object_paths = Hash.new
+                @object_paths = {}
             end
 
             # Discovers or rediscovers the objects
@@ -81,7 +82,7 @@ module MetaRuby
                 begin_reset_model
                 @id_to_module = []
                 @filtered_out_modules = Set.new
-                
+
                 info = discover_module(Object)
                 info.id = id_to_module.size
                 info.name = title
@@ -89,7 +90,7 @@ module MetaRuby
                 info.row = 0
                 id_to_module << info
 
-                @object_paths = Hash.new
+                @object_paths = {}
                 generate_paths(object_paths, info, "")
             ensure
                 end_reset_model
@@ -110,7 +111,7 @@ module MetaRuby
             # @param [String] current the path of 'info'
             def generate_paths(paths, info, current)
                 info.children.each do |child|
-                    child_uri = current + '/' + child.name
+                    child_uri = current + "/" + child.name
                     paths[child.this] = child_uri
                     generate_paths(paths, child, child_uri)
                 end
@@ -139,8 +140,9 @@ module MetaRuby
             # @param [Object] mod an object that should be discovered
             # @param [Array] stack the current stack (to avoid infinite recursions)
             # @return [ModuleInfo]
-            def discover_module(mod, stack = Array.new)
+            def discover_module(mod, stack = [])
                 return if excludes.include?(mod)
+
                 stack.push mod
 
                 children = []
@@ -150,25 +152,27 @@ module MetaRuby
 
                 if mod.respond_to?(:constants)
                     children_modules = begin mod.constants
-                                       rescue TypeError
-                                           puts "cannot discover module #{mod}"
-                                           []
-                                       end
+                    rescue TypeError
+                        puts "cannot discover module #{mod}"
+                        []
+                    end
 
                     children_modules = children_modules.map do |child_name|
-                        next if !mod.const_defined?(child_name, false)
+                        next unless mod.const_defined?(child_name, false)
                         # Ruby issues a warning when one tries to access Config
                         # (it has been deprecated in favor of RbConfig). Ignore
                         # it explicitly
                         next if mod == Object && child_name == :Config
                         next if mod.autoload?(child_name)
+
                         child_mod = begin mod.const_get(child_name)
-                                    rescue LoadError
-                                        # Handle autoload errors
-                                    end
-                        next if !child_mod
+                        rescue LoadError
+                            # Handle autoload errors
+                        end
+                        next unless child_mod
                         next if filtered_out_modules.include?(child_mod)
                         next if stack.include?(child_mod)
+
                         [child_name.to_s, child_mod]
                     end.compact.sort_by(&:first)
 
@@ -188,7 +192,8 @@ module MetaRuby
 
                 if is_needed
                     klass = if mod.respond_to?(:ancestors) then mod
-                            else mod.class
+                            else
+                                mod.class
                             end
 
                     current_priority = nil
@@ -208,9 +213,7 @@ module MetaRuby
 
                 update_module_type_info(mod_info)
 
-                if !children.empty? || is_needed
-                    mod_info
-                end
+                mod_info if !children.empty? || is_needed
             ensure stack.pop
             end
 
@@ -222,17 +225,15 @@ module MetaRuby
             # @param [ModuleInfo] info
             # @return [String]
             def compute_full_name(info)
-                if name = info.full_name
-                    return name
-                else
-                    full_name = []
-                    current = info
-                    while current.parent
-                        full_name << current.name
-                        current = current.parent
-                    end
-                    info.full_name = full_name.reverse
+                return name if info.full_name
+
+                full_name = []
+                current = info
+                while current.parent
+                    full_name << current.name
+                    current = current.parent
                 end
+                info.full_name = full_name.reverse
             end
 
             # @api private
@@ -243,22 +244,17 @@ module MetaRuby
             # @param [ModuleInfo] info
             # @return [String]
             def compute_path(info)
-                if path = info.path
-                    return path
-                else
-                    full_name = compute_full_name(info)
-                    info.path = ("/" + full_name.map(&:downcase).join("/"))
-                end
-            end
+                return path if info.path
 
+                full_name = compute_full_name(info)
+                info.path = ("/" + full_name.map(&:downcase).join("/"))
+            end
 
             # Resolves a {ModuleInfo} from a Qt::ModelIndex
             def info_from_index(index)
-                if !index.valid?
-                    return id_to_module.last
-                else
-                    id_to_module[index.internal_id >> 1]
-                end
+                return id_to_module.last unless index.valid?
+
+                id_to_module[index.internal_id >> 1]
             end
 
             # Return the Qt::ModelIndex that represents a given object
@@ -266,9 +262,9 @@ module MetaRuby
             # @return [Qt::ModelIndex,nil] the index, or nil if the object is
             #   not included in this model
             def find_index_by_model(model)
-                if info = id_to_module.find { |info| info.this == model }
-                    return create_index(info.row, 0, info.id)
-                end
+                return unless info = id_to_module.find { |info| info.this == model }
+
+                create_index(info.row, 0, info.id)
             end
 
             # Returns the Qt::ModelIndex that matches a given path
@@ -278,15 +274,13 @@ module MetaRuby
             #   not resolve to an object included in this model
             def find_index_by_path(*path)
                 current = id_to_module.last
-                if path.first == current.name
-                    path.shift
-                end
+                path.shift if path.first == current.name
 
                 path.each do |name|
                     current = id_to_module.find do |info|
                         info.name == name && info.parent == current
                     end
-                    return if !current
+                    return unless current
                 end
                 create_index(current.row, 0, current.id)
             end
@@ -303,23 +297,24 @@ module MetaRuby
             # @param [ModuleInfo] info
             # @return [String]
             def compute_keyword_string(info)
-                if keywords = info.keyword_string
-                    return keywords
-                else
-                    types = info.types.map do |type|
-                        type_info[type].name
-                    end.sort.join(",")
-                    paths = [compute_path(info)]
-                    paths.concat info.children.map { |child| compute_keyword_string(child) }
-                    info.keyword_string = "#{types};#{paths.join(",")}"
-                end
+                return keywords if info.keyword_string
+
+                types = info.types.map do |type|
+                    type_info[type].name
+                end.sort.join(",")
+                paths = [compute_path(info)]
+                paths.concat(info.children.map do |child|
+                    compute_keyword_string(child)
+                end)
+                info.keyword_string = "#{types};#{paths.join(',')}"
             end
 
             # Reimplemented for Qt model interface
-            def headerData(section, orientation, role)
+            def headerData(section, _orientation, role)
                 if role == Qt::DisplayRole && section == 0
                     Qt::Variant.new(title)
-                else Qt::Variant.new
+                else
+                    Qt::Variant.new
                 end
             end
 
@@ -334,26 +329,24 @@ module MetaRuby
                         return Qt::Variant.new(compute_keyword_string(info))
                     end
                 end
-                return Qt::Variant.new
+                Qt::Variant.new
             end
 
             # Reimplemented for Qt model interface
             def index(row, column, parent)
-                if info = info_from_index(parent)
-                    if child_info = info.children[row]
-                        return create_index(row, column, child_info.id)
-                    end
+                if (info = info_from_index(parent)) && child_info = info.children[row]
+                    return create_index(row, column, child_info.id)
                 end
+
                 Qt::ModelIndex.new
             end
 
             # Reimplemented for Qt model interface
             def parent(child)
-                if info = info_from_index(child)
-                    if info.parent && info.parent != root_info
-                        return create_index(info.parent.row, 0, info.parent.id)
-                    end
+                if (info = info_from_index(child)) && (info.parent && info.parent != root_info)
+                    return create_index(info.parent.row, 0, info.parent.id)
                 end
+
                 Qt::ModelIndex.new
             end
 
@@ -361,15 +354,15 @@ module MetaRuby
             def rowCount(parent)
                 if info = info_from_index(parent)
                     info.children.size
-                else 0
+                else
+                    0
                 end
             end
 
             # Reimplemented for Qt model interface
-            def columnCount(parent)
-                return 1
+            def columnCount(_parent)
+                1
             end
         end
     end
 end
-
