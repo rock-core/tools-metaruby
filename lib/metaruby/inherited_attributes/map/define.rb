@@ -9,7 +9,14 @@ module MetaRuby
             def self.define( # rubocop:disable Metrics/ParameterLists
                 target, name, attribute_name, ivar, promote:, yield_key:, enum_with:
             )
-                mod = Module.new
+                mod =
+                    if target.kind_of?(Class) && !(target <= Class)
+                        # Class, but not singleton class of a class
+                        target.singleton_class
+                    else
+                        target
+                    end
+
                 mod.class_eval <<-CODE, __FILE__, __LINE__ + 1
                 def #{attribute_name}
                     @#{ivar} ||= #{ivar}_default
@@ -72,17 +79,6 @@ module MetaRuby
                         mod, name, ivar,
                         yield_key: yield_key, enum_with: enum_with
                     )
-                end
-
-                if target.kind_of?(Class) && (target <= Class)
-                    # singleton class of a class, need to treat the underlying
-                    # object as a class (mostly, no need to overload singleton_class)
-                    underlying_class = target.attached_object
-                    underlying_class.extend mod
-                elsif target.kind_of?(Class)
-                    target.extend mod
-                else
-                    target.include mod
                 end
             end
         end

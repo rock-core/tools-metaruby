@@ -8,7 +8,13 @@ module MetaRuby
         def self.common_collection(
             target, name, attribute_name, ivar, init
         )
-            mod = Module.new
+            mod =
+                if target.kind_of?(Class) && !(target <= Class)
+                    target.singleton_class
+                else
+                    target
+                end
+
             mod.define_method("#{ivar}_default", &init)
 
             mod.class_eval <<-CODE, __FILE__, __LINE__ + 1
@@ -31,12 +37,6 @@ module MetaRuby
                 @#{ivar}&.clear
             end
             CODE
-
-            if target.kind_of?(Class) && !(target <= Class)
-                target.extend mod
-            else
-                target.include mod
-            end
         end
     end
 end
