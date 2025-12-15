@@ -27,7 +27,7 @@ module MetaRuby
                     assert_equal({}, @parent.attrs)
                 end
 
-                InheritedAttributes::Map.common_without_promotion(self)
+                InheritedAttributes::Map.common_without_promotion(self, cache: false)
             end
 
             describe "with promotion" do
@@ -55,7 +55,7 @@ module MetaRuby
                     assert_equal({}, @parent.attrs)
                 end
 
-                InheritedAttributes::Map.common_with_promotion(self)
+                InheritedAttributes::Map.common_with_promotion(self, cache: false)
             end
         end
     end

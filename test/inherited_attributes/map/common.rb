@@ -9,10 +9,10 @@
 module MetaRuby
     module InheritedAttributes
         module Map # rubocop:disable Metrics/ModuleLength
-            def self.common_without_promotion(context)
+            def self.common_without_promotion(context, cache:)
                 context.class_eval do
                     InheritedAttributes::Map.common_has_NAME(self)
-                    InheritedAttributes::Map.common_initialization(context)
+                    InheritedAttributes::Map.common_initialization(context, cache: cache)
 
                     describe "each_NAME" do
                         it "does nothing if no values are set" do
@@ -435,10 +435,10 @@ module MetaRuby
                 end
             end
 
-            def self.common_with_promotion(context)
+            def self.common_with_promotion(context, cache:)
                 context.class_eval do
                     InheritedAttributes::Map.common_has_NAME(self)
-                    InheritedAttributes::Map.common_initialization(context)
+                    InheritedAttributes::Map.common_initialization(context, cache: cache)
 
                     describe "each_NAME" do
                         it "does nothing if no values are set" do
@@ -848,8 +848,9 @@ module MetaRuby
                 end
             end
 
-            def self.common_initialization(context)
+            def self.common_initialization(context, cache:)
                 context.send(:describe, "initialization") do
+                    define_method(:inherited_attribute_cache) { cache }
                     def self.common(context)
                         context.class_eval do
                             it "initializes the cache and self-values ivar" do
@@ -857,35 +858,32 @@ module MetaRuby
                                 assert_properly_initialized(root)
                             end
 
-                            describe "direct subclassing" do
-                                it "initializes the cache and self-values ivar " \
-                                   "in subclasses" do
-                                    root = create_root_class
-                                    subclass = Class.new(root)
-                                    assert_properly_initialized(subclass)
-                                end
+                            it "initializes the cache and self-values ivar " \
+                               "in subclasses" do
+                                root = create_root_class
+                                subclass = Class.new(root)
+                                assert_properly_initialized(subclass)
                             end
 
-                            describe "singleton classes" do
-                                it "initializes the cache and self-values ivar " \
-                                   "in subclasses" do
-                                    root = create_root_class
-                                    obj = root.new
-                                    subclass = obj.singleton_class
-                                    assert_properly_initialized(subclass)
-                                end
+                            it "initializes the cache and self-values ivar " \
+                               "in the singleton class" do
+                                root = create_root_class
+                                obj = root.new
+                                subclass = obj.singleton_class
+                                assert_properly_initialized(subclass)
                             end
                         end
                     end
 
                     describe "direct usage" do
                         def create_root_class
+                            cache = inherited_attribute_cache
                             Class.new do
                                 extend ModelAsClass
                                 extend Attributes
 
                                 inherited_attribute(
-                                    :attr, :attrs, map: true, cache: true
+                                    :attr, :attrs, map: true, cache: cache
                                 ) { {} }
                             end
                         end
@@ -893,14 +891,34 @@ module MetaRuby
                         common(self)
                     end
 
+                    describe "in the class' singleton class" do
+                        def create_root_class
+                            cache = inherited_attribute_cache
+                            root_class = Class.new do
+                                extend ModelAsClass
+                                class << self
+                                    extend Attributes
+                                end
+                            end
+
+                            root_class.singleton_class.inherited_attribute(
+                                :attr, :attrs, map: true, cache: cache
+                            ) { {} }
+                            root_class
+                        end
+
+                        common(self)
+                    end
+
                     describe "in module and then extended" do
                         def create_root_class
+                            cache = inherited_attribute_cache
                             mod = Module.new do
                                 include ModelAsClass
                                 extend Attributes
 
                                 inherited_attribute(
-                                    :attr, :attrs, map: true, cache: true
+                                    :attr, :attrs, map: true, cache: cache
                                 ) { {} }
                             end
 
@@ -915,12 +933,13 @@ module MetaRuby
                     describe "in a module itself included " \
                              "in another before extending the class" do
                         def create_root_class
+                            cache = inherited_attribute_cache
                             mod = Module.new do
                                 include ModelAsClass
                                 extend Attributes
 
                                 inherited_attribute(
-                                    :attr, :attrs, map: true, cache: true
+                                    :attr, :attrs, map: true, cache: cache
                                 ) { {} }
                             end
 

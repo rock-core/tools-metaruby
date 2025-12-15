@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "backports/3.2.0/class/attached_object"
+
 module MetaRuby
     module InheritedAttributes
         # @api private
@@ -12,6 +14,10 @@ module MetaRuby
                 def __metaruby_inherited_attributes_initialize
                     @#{ivar} = #{ivar}_default
                     __metaruby_discover_#{name}_keys
+                end
+
+                def self_#{attribute_name}
+                    @#{ivar}
                 end
 
                 def #{name}_get(key)
@@ -51,7 +57,24 @@ module MetaRuby
                     cache_without_promotion(mod, name, ivar)
                 end
 
-                if target.kind_of?(Class)
+                apply_extension_modules(target, mod)
+            end
+
+            # Apply our definition module as well as the required hooks (to propagate
+            # attributes through include/extend/subclassing and singleton class)
+            #
+            # The way these modules need to be "propagated" depends on the kind of target
+            # (module, class, singleton class or singleton class-of-class)
+            def self.apply_extension_modules(target, mod)
+                if target.kind_of?(Class) && (target <= Class)
+                    # singleton class of a class, need to treat the underlying
+                    # object as a class (mostly, no need to overload singleton_class)
+                    underlying_class = target.attached_object
+                    underlying_class.extend mod
+                    underlying_class.extend Initialization::Inherited
+                    underlying_class.include Initialization::SingletonClass
+                    underlying_class.__metaruby_inherited_attributes_initialize
+                elsif target.kind_of?(Class)
                     target.extend mod
                     target.extend Initialization::Inherited
                     target.include Initialization::SingletonClass

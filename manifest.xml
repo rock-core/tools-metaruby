@@ -6,6 +6,7 @@
 
   <depend package="bundler" />
   <depend package="utilrb" />
+  <depend package="ruby-backports" />
   <depend package="kramdown" optional="1" />
 
   <test_depend package="minitest" />

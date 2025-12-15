@@ -24,7 +24,7 @@ module MetaRuby
                     @leaf = Class.new(@child)
                 end
 
-                InheritedAttributes::Map.common_without_promotion(self)
+                InheritedAttributes::Map.common_without_promotion(self, cache: true)
             end
 
             describe "with promotion" do
@@ -49,7 +49,7 @@ module MetaRuby
                     @leaf = Class.new(@child)
                 end
 
-                InheritedAttributes::Map.common_with_promotion(self)
+                InheritedAttributes::Map.common_with_promotion(self, cache: true)
             end
         end
     end

@@ -18,12 +18,6 @@ module MetaRuby
                 @#{ivar} = #{ivar}_default
             end
             def all_#{name}; each_#{name}.to_a end
-            def self_#{attribute_name}
-                @#{ivar}
-            end
-            CODE
-
-            mod.class_eval <<-CODE, __FILE__, __LINE__ + 1
             def clear_#{attribute_name}
                 @#{ivar}&.clear
                 for klass in ancestors
@@ -38,7 +32,7 @@ module MetaRuby
             end
             CODE
 
-            if target.kind_of?(Class)
+            if target.kind_of?(Class) && !(target <= Class)
                 target.extend mod
             else
                 target.include mod
