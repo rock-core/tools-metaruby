@@ -1,5 +1,19 @@
 # frozen_string_literal: true
 
+# Our own backport, copied from the `backports` gem because of
+# https://github.com/marcandre/backports/pull/199
+#
+# Switch back to using backport when the PR is merged and released
+unless Class.method_defined? :attached_object
+    class Class # :nodoc:
+        def attached_object
+            raise TypeError, "`#{self}' is not a singleton class" unless singleton_class?
+
+            ObjectSpace.each_object(self).first
+        end
+    end
+end
+
 require "backports/3.2.0/class/attached_object"
 
 module MetaRuby
