@@ -326,6 +326,12 @@ module MetaRuby
                             assert_nil @leaf.find_attr("foo")
                         end
 
+                        it "does not pollute the cache " \
+                           "when called for non-existent keys" do
+                            @leaf.find_attr("foo")
+                            assert_equal [], @leaf.each_attr.to_a
+                        end
+
                         it "discovers the hierarchy's entries " \
                            "even if it has no entries itself" do
                             @parent.attr_set("foo", 42)

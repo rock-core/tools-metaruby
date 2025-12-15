@@ -109,6 +109,8 @@ module MetaRuby
                     end
 
                     def find_#{name}(key)
+                        return unless @#{ivar}_cache.key?(key)
+
                         @#{ivar}_cache[key] = __metaruby_find_#{name}(key)
                     end
 
