@@ -1,5 +1,20 @@
+# frozen_string_literal: true
+
 require "set"
 require "utilrb/module/dsl_attribute"
+
+require "metaruby/inherited_attributes/common_collection"
+require "metaruby/inherited_attributes/ancestors_access"
+require "metaruby/inherited_attributes/single_value/define"
+require "metaruby/inherited_attributes/single_value/no_cache"
+require "metaruby/inherited_attributes/enumerable/define"
+require "metaruby/inherited_attributes/enumerable/no_cache"
+require "metaruby/inherited_attributes/map/define"
+require "metaruby/inherited_attributes/map/no_cache"
+require "metaruby/inherited_attributes/map/define_with_cache"
+require "metaruby/inherited_attributes/map/cache"
+require "metaruby/inherited_attributes/map/validate_cache_args"
+
 module MetaRuby
     # Basic functionality for attributes that are aware of inheritance
     #
@@ -37,6 +52,8 @@ module MetaRuby
     #   end
     module Attributes
         def included(mod)
+            super
+
             mod.extend Attributes
         end
 
@@ -56,113 +73,11 @@ module MetaRuby
                 define_method("#{dsl_attribute_name}_get_default") { default_value }
             end
 
-            promotion_method = "promote_#{name}"
-            if method_defined?(promotion_method)
-                define_single_value_with_promotion("#{dsl_attribute_name}_get",
-                                                   promotion_method, ivar)
-            else
-                define_single_value_without_promotion("#{dsl_attribute_name}_get", ivar)
-            end
-            define_method(name) do |*args|
-                if args.empty? # Getter call
-                    send("#{dsl_attribute_name}_get")
-                else # Setter call, delegate to the dsl_attribute implementation
-                    send(dsl_attribute_name, *args)
-                end
-            end
+            InheritedAttributes::SingleValue.define(
+                self, name, dsl_attribute_name, ivar,
+                promotion_method: "promote_#{name}"
+            )
             nil
-        end
-
-        ANCESTORS_ACCESS =
-            if RUBY_VERSION < "2.1.0"
-                <<-EOCODE
-                ancestors = self.ancestors
-                if ancestors.first != self
-                    ancestors.unshift self
-                end
-                EOCODE
-            else
-                <<-EOCODE
-                ancestors = self.ancestors
-                EOCODE
-            end
-
-        # @api private
-        #
-        # Helper method for {#inherited_single_value_attribute} in case there
-        # are no promotion method(s) defined
-        def define_single_value_without_promotion(method_name, ivar)
-            class_eval <<-EOF, __FILE__, __LINE__ + 1
-            def #{method_name}
-                #{ANCESTORS_ACCESS}
-
-                has_value = false
-                for klass in ancestors
-                    if klass.instance_variable_defined?(:#{ivar})
-                        has_value = true
-                        value = klass.instance_variable_get(:#{ivar})
-                        break
-                    end
-                end
-
-                if !has_value && respond_to?(:#{method_name}_default)
-                    # Look for default
-                    has_value = true
-                    value = send(:#{method_name}_default).call
-                    base = nil
-                    for klass in ancestors
-                        if !klass.respond_to?(:#{method_name}_default)
-                            break
-                        end
-                        base = klass
-                    end
-                    base.instance_variable_set :#{ivar}, value
-                end
-                value
-            end
-            EOF
-        end
-
-        # @api private
-        #
-        # Helper method for {#inherited_single_value_attribute} in case there is
-        # a promotion method defined
-        def define_single_value_with_promotion(method_name, promotion_method_name, ivar)
-            class_eval <<-EOF, __FILE__, __LINE__ + 1
-            def #{method_name}
-                #{ANCESTORS_ACCESS}
-
-                promotions = []
-                for klass in ancestors
-                    if klass.instance_variable_defined?(:#{ivar})
-                        has_value = true
-                        value = klass.instance_variable_get(:#{ivar})
-                        break
-                    end
-                    promotions.unshift(klass) if klass.respond_to?(:#{promotion_method_name})
-                end
-                if !has_value && respond_to?(:#{method_name}_default)
-                    # Look for default
-                    has_value = true
-                    value = send(:#{method_name}_default).call
-                    base = nil
-                    promotions.clear
-                    for klass in ancestors
-                        if !klass.respond_to?(:#{method_name}_default)
-                            break
-                        end
-                        base = klass
-                        promotions.unshift(klass) if klass.respond_to?(:#{promotion_method_name})
-                    end
-                    promotions.shift
-                    base.instance_variable_set :#{ivar}, value
-                end
-
-                if has_value
-                    promotions.inject(value) { |v, k| k.#{promotion_method_name}(v) }
-                end
-            end
-            EOF
         end
 
         # Defines an attribute that holds a set of values, and defines the
@@ -260,251 +175,45 @@ module MetaRuby
         # since 'map' is a Hash, the order of keys in one class is not guaranteed.
         # Nonetheless, we have the guarantee that values from B appear before
         # those from A
-        #   B.enum_for(:each_mapped, nil, false).to_a # => [["half_of_it", 21], ["name", "B"], ["name", "A"], ["universe", 42]]
+        #   B.each_mapped(nil, false).to_a # => [["half_of_it", 21], ["name", "B"], ["name", "A"], ["universe", 42]]
         #
         #
         # Now, let's see how 'key' behaves
-        #   A.enum_for(:each_mapped, 'name').to_a # => ["A"]
-        #   B.enum_for(:each_mapped, 'name').to_a # => ["B"]
-        #   B.enum_for(:each_mapped, 'name', false).to_a # => ["B", "A"]
+        #   A.each_mapped('name').to_a # => ["A"]
+        #   B.each_mapped('name').to_a # => ["B"]
+        #   B.each_mapped('name', false).to_a # => ["B", "A"]
         #
-        def inherited_attribute(name, attribute_name = name, yield_key: true, map: false, enum_with: :each, &init) # :nodoc:
-            # Set up the attribute accessor
-            attribute(attribute_name, &init)
-            class_eval { private "#{attribute_name}=" }
+        def inherited_attribute( # rubocop:disable Metrics/ParameterLists
+            name, attribute_name = name,
+            yield_key: true, map: false, enum_with: :each, cache: false, &init
+        )
+            ivar =
+                if cache
+                    "__metaruby_#{name}"
+                else
+                    attribute_name
+                end
+
+            InheritedAttributes.common_collection(self, name, attribute_name, ivar, init)
 
             promote = method_defined?("promote_#{name}")
-
-            class_eval <<-EOF, __FILE__, __LINE__ + 1
-            def all_#{name}; each_#{name}.to_a end
-            def self_#{name}; @#{attribute_name} end
-            EOF
-
-            if map
-                class_eval <<-EOF, __FILE__, __LINE__ + 1
-                def find_#{name}(key)
-                    raise ArgumentError, "nil cannot be used as a key in find_#{name}" if !key
-                    each_#{name}(key, true) do |value|
-                        return value
-                    end
-                    nil
-                end
-                def has_#{name}?(key)
-                    #{ANCESTORS_ACCESS}
-                    for klass in ancestors
-                        if attr = klass.instance_variable_get(:@#{attribute_name})
-                            return true if attr.has_key?(key)
-                        end
-                    end
-                    false
-                end
-                EOF
-            else
-                class_eval <<-EOF, __FILE__, __LINE__ + 1
-                def has_#{name}?(key)
-                    each_#{name}.any? { |obj| obj == key }
-                end
-                EOF
-            end
-
-            class_eval <<-EOF, __FILE__, __LINE__ + 1
-            def clear_#{attribute_name}
-                #{attribute_name}.clear
-                for klass in ancestors
-                    if attr = klass.instance_variable_get(:@#{attribute_name})
-                        attr.clear
-                    end
-                end
-            end
-            EOF
-
-            if !promote
-                if map
-                    class_eval(*Attributes.map_without_promotion(name, attribute_name,
-                                                                 yield_key: yield_key, enum_with: enum_with))
-                else
-                    class_eval(*Attributes.nomap_without_promotion(name, attribute_name,
-                                                                   enum_with: enum_with))
-                end
+            if cache
+                InheritedAttributes::Map
+                    .validate_cache_args(map: map, enum_with: enum_with)
+                InheritedAttributes::Map.define_with_cache(
+                    self, name, attribute_name, ivar, promote: promote
+                )
             elsif map
-                class_eval(*Attributes.map_with_promotion(name, attribute_name,
-                                                          yield_key: yield_key, enum_with: enum_with))
+                InheritedAttributes::Map.define(
+                    self, name, attribute_name, ivar,
+                    promote: promote, yield_key: yield_key, enum_with: enum_with
+                )
             else
-                class_eval(*Attributes.nomap_with_promotion(name, attribute_name,
-                                                            enum_with: enum_with))
+                InheritedAttributes::Enumerable.define(
+                    self, name, ivar,
+                    promote: promote, enum_with: enum_with
+                )
             end
-        end
-
-        # @api private
-        #
-        # Helper class that defines the iteration method for inherited_attribute
-        # when :map is set and there is not promotion method
-        def self.map_without_promotion(name, attribute_name, yield_key: true, enum_with: :each)
-            file = __FILE__
-            line = __LINE__ + 2
-            code = <<-EOF
-            def each_#{name}(key = nil, uniq = true)
-                if !block_given?
-                    return enum_for(:each_#{name}, key, uniq)
-                end
-
-                #{ANCESTORS_ACCESS}
-                if key
-                    for klass in ancestors
-                        if attr = klass.instance_variable_get(:@#{attribute_name})
-                            if attr.has_key?(key)
-                                yield(attr[key])
-                                return self if uniq
-                            end
-                        end
-                    end
-                elsif !uniq
-                    for klass in ancestors
-                        if attr = klass.instance_variable_get(:@#{attribute_name})
-                            attr.#{enum_with} do |el|
-                                yield(el)
-                            end
-                        end
-                    end
-                else
-                    seen = Set.new
-                    for klass in ancestors
-                        if attr = klass.instance_variable_get(:@#{attribute_name})
-                            attr.#{enum_with} do |el_key, el|#{' '}
-                                if !seen.include?(el_key)
-                                    seen << el_key
-                                    #{yield_key ? 'yield(el_key, el)' : 'yield(el)'}
-                                end
-                            end
-                        end
-                    end
-
-                end
-                self
-            end
-            EOF
-            [code, file, line]
-        end
-
-        # @api private
-        #
-        # Helper class that defines the iteration method for inherited_attribute
-        # when :map is not set and there is no promotion method
-        def self.nomap_without_promotion(name, attribute_name, enum_with: :each)
-            file = __FILE__
-            line = __LINE__ + 2
-            code = <<-EOF
-            def each_#{name}
-                return enum_for(__method__) if !block_given?
-
-                #{ANCESTORS_ACCESS}
-                for klass in ancestors
-                    if attr = klass.instance_variable_get(:@#{attribute_name})
-                        attr.#{enum_with} { |el| yield(el) }
-                    end
-                end
-                self
-            end
-            EOF
-            [code, file, line]
-        end
-
-        # @api private
-        #
-        # Helper class that defines the iteration method for inherited_attribute
-        # when :map is set and there is a promotion method
-        def self.map_with_promotion(name, attribute_name, yield_key: true, enum_with: :each)
-            file = __FILE__
-            line = __LINE__ + 2
-            code = <<-EOF
-            def each_#{name}(key = nil, uniq = true)
-                if !block_given?
-                    return enum_for(:each_#{name}, key, uniq)
-                end
-
-                #{ANCESTORS_ACCESS}
-                if key
-                    promotions = []
-                    for klass in ancestors
-                        if attr = klass.instance_variable_get(:@#{attribute_name})
-                            if attr.has_key?(key)
-                                value = attr[key]
-                                for p in promotions
-                                    value = p.promote_#{name}(key, value)
-                                end
-                                yield(value)
-                                return self if uniq
-                            end
-                        end
-                        promotions.unshift(klass) if klass.respond_to?(:promote_#{name})
-                    end
-                elsif !uniq
-                    promotions = []
-                    for klass in ancestors
-                        if attr = klass.instance_variable_get(:@#{attribute_name})
-                            attr.#{enum_with} do |k, v|
-                                for p in promotions
-                                    v = p.promote_#{name}(k, v)
-                                end
-                                #{yield_key ? 'yield(k, v)' : 'yield(v)'}
-                            end
-                        end
-                        promotions.unshift(klass) if klass.respond_to?(:promote_#{name})
-                    end
-                else
-                    seen = Set.new
-                    promotions = []
-                    for klass in ancestors
-                        if attr = klass.instance_variable_get(:@#{attribute_name})
-                            attr.#{enum_with} do |k, v|
-                                unless seen.include?(k)
-                                    for p in promotions
-                                        v = p.promote_#{name}(k, v)
-                                    end
-                                    seen << k
-                                    #{yield_key ? 'yield(k, v)' : 'yield(v)'}
-                                end
-                            end
-                        end
-                        promotions.unshift(klass) if klass.respond_to?(:promote_#{name})
-                    end
-                end
-                self
-            end
-            EOF
-            [code, file, line]
-        end
-
-        # @api private
-        #
-        # Helper class that defines the iteration method for inherited_attribute
-        # when :map is not set and there is a promotion method
-        def self.nomap_with_promotion(name, attribute_name, enum_with: :each)
-            file = __FILE__
-            line = __LINE__ + 2
-            code = <<-EOF
-            def each_#{name}
-                if !block_given?
-                    return enum_for(:each_#{name})
-                end
-
-                #{ANCESTORS_ACCESS}
-                promotions = []
-                for klass in ancestors
-                    if attr = klass.instance_variable_get(:@#{attribute_name})
-                        attr.#{enum_with} do |value|
-                            for p in promotions
-                                value = p.promote_#{name}(value)
-                            end
-                            yield(value)
-                        end
-                    end
-                    promotions.unshift(klass) if klass.respond_to?(:promote_#{name})
-                end
-                self
-            end
-            EOF
-            [code, file, line]
         end
     end
 end
