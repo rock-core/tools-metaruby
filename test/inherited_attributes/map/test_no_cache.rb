@@ -23,6 +23,10 @@ module MetaRuby
                     @leaf = Class.new(@child)
                 end
 
+                it "defines the attribute method" do
+                    assert_equal({}, @parent.attrs)
+                end
+
                 InheritedAttributes::Map.common_without_promotion(self)
             end
 
@@ -45,6 +49,10 @@ module MetaRuby
                     end
                     @child = Class.new(@parent)
                     @leaf = Class.new(@child)
+                end
+
+                it "defines the attribute method" do
+                    assert_equal({}, @parent.attrs)
                 end
 
                 InheritedAttributes::Map.common_with_promotion(self)

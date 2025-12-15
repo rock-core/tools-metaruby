@@ -10,6 +10,10 @@ module MetaRuby
                 mod, name, attribute_name, ivar, promote:, yield_key:, enum_with:
             )
                 mod.class_eval <<-CODE, __FILE__, __LINE__ + 1
+                def #{attribute_name}
+                    @#{ivar} ||= #{ivar}_default
+                end
+
                 def #{name}_get(key)
                     @#{ivar}&.fetch(key, nil)
                 end
