@@ -150,12 +150,13 @@ module MetaRuby
                 # Overload of Object#singleton_class to initialize inherited attributes
                 # once on singleton class creation
                 module SingletonClass
+                    GUARD_IVAR = :@__metaruby_singleton_initialized
                     def singleton_class
                         s = super
-                        return s if @__metaruby_singleton_initialized
+                        return s if s.instance_variable_defined?(GUARD_IVAR)
 
                         s.__metaruby_inherited_attributes_initialize
-                        @__metaruby_singleton_initialized = true
+                        s.instance_variable_set(GUARD_IVAR, true)
                         s
                     end
                 end

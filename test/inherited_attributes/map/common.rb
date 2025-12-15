@@ -878,6 +878,15 @@ module MetaRuby
                                 subclass = obj.singleton_class
                                 assert_properly_initialized(subclass)
                             end
+
+                            it "initializes the cache and self-values ivar " \
+                               "in the singleton class of a duplicate" do
+                                root = create_root_class
+                                obj = root.new
+                                obj.singleton_class
+                                subclass = obj.dup.singleton_class
+                                assert_properly_initialized(subclass)
+                            end
                         end
                     end
 
