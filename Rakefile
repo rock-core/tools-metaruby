@@ -14,8 +14,9 @@ Rake::TestTask.new("test:lib") do |t|
     t.libs << "lib"
     t.libs << "."
 
-    t.test_files = FileList["test/**/test_*.rb"]
-    t.test_files.exclude("test/gui/**/test_*.rb") unless has_gui
+    test_files = FileList["test/**/test_*.rb"]
+    test_files.exclude("test/gui/**/test_*.rb") unless has_gui
+    t.test_files = test_files
 end
 task "test" => "test:lib"
 
