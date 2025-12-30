@@ -31,13 +31,18 @@ describe MetaRuby::Registration do
 
     class ModelStub
         extend MetaRuby::Registration
+
+        def self.supermodel
+            s = superclass
+            s if s != Object
+        end
     end
 
-    def model_stub(parent_model = nil)
+    def model_stub(parent_model = nil, direct: true)
         result = Class.new(ModelStub)
         result.permanent_model = false
         flexmock(result).should_receive(:supermodel).explicitly.and_return(parent_model).by_default
-        parent_model.register_submodel(result) if parent_model
+        parent_model.register_submodel(result, direct: direct) if parent_model
         result
     end
 
@@ -93,16 +98,40 @@ describe MetaRuby::Registration do
         end
         it "registers the model on the receiver's parent model" do
             parent_model = Class.new(ModelStub)
-            sub_model = Class.new(ModelStub)
-            flexmock(base_model).should_receive(:supermodel).explicitly.and_return(parent_model)
-            flexmock(parent_model).should_receive(:register_submodel).with(sub_model).once
+            base_model = Class.new(parent_model)
+            sub_model = Class.new(base_model)
             base_model.register_submodel(sub_model)
+            assert parent_model.has_submodel?(sub_model)
         end
     end
 
     describe "#each_submodel" do
-        attr_reader :base_model
+        before do
+            @base_model = model_stub
+        end
 
+        it "filters out submodels that have been garbage-collected" do
+            _sub1 = model_stub(@base_model)
+            sub2 = model_stub(@base_model)
+            flexmock(@base_model.submodels[0].first)
+                .should_receive(:__getobj__).and_raise(WeakRef::RefError)
+            assert_equal [sub2], @base_model.each_submodel.to_a
+            assert_equal [sub2], @base_model.each_submodel.to_a
+            assert_equal 1, @base_model.submodels.size
+        end
+
+        it "recursively enumerates children" do
+            sub1 = model_stub(@base_model)
+            sub2 = model_stub(@base_model)
+            subsub = model_stub(sub1)
+
+            assert_equal Set[sub1, sub2, subsub], @base_model.each_submodel.to_set
+            assert_equal Set[subsub], sub1.each_submodel.to_set
+            assert_equal Set[], sub2.each_submodel.to_set
+        end
+    end
+
+    describe "#each_direct_submodel" do
         before do
             @base_model = model_stub
         end
@@ -110,12 +139,23 @@ describe MetaRuby::Registration do
         it "filters out submodels that have been garbage-collected" do
             sub1 = Class.new(ModelStub)
             sub2 = Class.new(ModelStub)
-            base_model.register_submodel(sub1)
-            base_model.register_submodel(sub2)
-            flexmock(base_model.submodels[0]).should_receive(:__getobj__).and_raise(WeakRef::RefError)
-            assert_equal [sub2], base_model.each_submodel.to_a
-            assert_equal [sub2], base_model.each_submodel.to_a
-            assert_equal 1, base_model.submodels.size
+            @base_model.register_submodel(sub1)
+            @base_model.register_submodel(sub2)
+            flexmock(@base_model.submodels[0].first)
+                .should_receive(:__getobj__).and_raise(WeakRef::RefError)
+            assert_equal [sub2], @base_model.each_submodel.to_a
+            assert_equal [sub2], @base_model.each_submodel.to_a
+            assert_equal 1, @base_model.submodels.size
+        end
+
+        it "enumerates only direct children" do
+            sub1 = model_stub(@base_model)
+            sub2 = model_stub(@base_model)
+            subsub = model_stub(sub1)
+
+            assert_equal Set[sub1, sub2], @base_model.each_direct_submodel.to_set
+            assert_equal Set[subsub], sub1.each_direct_submodel.to_set
+            assert_equal Set[], sub2.each_direct_submodel.to_set
         end
     end
 
@@ -155,7 +195,8 @@ describe MetaRuby::Registration do
         it "ignores garbage collected models" do
             sub2 = Class.new(ModelStub)
             base_model.register_submodel(sub2)
-            flexmock(base_model.submodels[0]).should_receive(:__getobj__).and_raise(WeakRef::RefError)
+            flexmock(base_model.submodels[0].first)
+                .should_receive(:__getobj__).and_raise(WeakRef::RefError)
             base_model.deregister_submodels([sub2])
             assert base_model.submodels.empty?
         end

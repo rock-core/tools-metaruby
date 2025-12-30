@@ -11,3 +11,9 @@ inherit_mode:
 AllCops:
     TargetRubyVersion: "2.5"
     NewCops: enable
+    Exclude:
+        - benchmarks/**/*
+
+Style/DocumentDynamicEvalDefinition:
+    Exclude:
+        - lib/metaruby/inherited_attributes/**/*

@@ -69,7 +69,7 @@ module MetaRuby
         end
 
         # Call to register a model that is a submodel of +self+
-        def register_submodel(klass)
+        def register_submodel(klass, direct: true)
             if klass.singleton_class?
                 raise ArgumentError, "cannot register a singleton class"
             end
@@ -83,18 +83,37 @@ module MetaRuby
                     end
             end
 
-            submodels << WeakRef.new(klass)
+            submodels << [WeakRef.new(klass), direct]
             return unless m = supermodel
 
-            m.register_submodel(klass)
+            m.register_submodel(klass, direct: false)
         end
 
-        # Enumerates all models that are submodels of this class
+        # Enumerates all models that are submodels of this class, recursively
+        #
+        # It will enumerate direct children as well as the children of children and
+        # so on
+        #
+        # @see each_direct_submodel
         def each_submodel
             return enum_for(:each_submodel) unless block_given?
 
-            submodels.delete_if do |obj|
+            submodels.delete_if do |obj, _|
                 yield(obj.__getobj__)
+                false
+            rescue WeakRef::RefError
+                true
+            end
+        end
+
+        # Enumerates all direct submodels of this class
+        #
+        # @see each_submodel
+        def each_direct_submodel
+            return enum_for(:each_direct_submodel) unless block_given?
+
+            submodels.delete_if do |obj, obj_direct|
+                yield(obj.__getobj__) if obj_direct
                 false
             rescue WeakRef::RefError
                 true
@@ -166,7 +185,7 @@ module MetaRuby
         # @param [Set] set the set of submodels to remove
         def deregister_submodels(set)
             has_match = false
-            submodels.delete_if do |m|
+            submodels.delete_if do |m, _|
                 m = m.__getobj__
                 has_match = true if set.include?(m)
             rescue WeakRef::RefError
