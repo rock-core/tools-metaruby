@@ -79,7 +79,7 @@ describe MetaRuby::Registration do
             refute NonPermanentMetaRubyContext::Constant.permanent_definition_context?
         end
         it "returns false if the context name cannot be resolved" do
-            flexmock(Mod::Constant).should_receive(:constant).with("::Mod").and_raise(NameError)
+            flexmock(Mod::Constant).should_receive(:const_get).with("::Mod").and_raise(NameError)
             refute Mod::Constant.permanent_definition_context?
         end
     end
@@ -277,7 +277,7 @@ describe MetaRuby::Registration do
         it "returns false for models whose name cannot be resolved" do
             klass = Class.new { extend MetaRuby::Registration }
             flexmock(klass).should_receive(:name).and_return("DoesNotExist")
-            flexmock(klass).should_receive(:constant).with("::DoesNotExist").and_raise(NameError)
+            flexmock(klass).should_receive(:const_get).with("::DoesNotExist").and_raise(NameError)
             assert !klass.accessible_by_name?
         end
     end
@@ -319,7 +319,7 @@ describe MetaRuby::Registration do
         it "should deregister the object on the enclosing context" do
             obj = flexmock(basename: "Name", spacename: "Test")
             context = flexmock
-            flexmock(MetaRuby::Registration).should_receive(:constant).with("::Test").and_return(context)
+            flexmock(MetaRuby::Registration).should_receive(:const_get).with("::Test").and_return(context)
             context.should_receive(:remove_const).with("Name").once
             MetaRuby::Registration.deregister_constant(obj)
         end
