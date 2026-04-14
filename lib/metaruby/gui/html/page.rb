@@ -15,8 +15,7 @@ module MetaRuby::GUI
             end
         end
 
-        # A helper class that gives us easy-to-use page elements on a
-        # Qt::WebView
+        # A helper class that gives us easy-to-use HTML page elements
         #
         # Such a page is managed as a list of sections (called {Fragment}). A
         # new fragment is added or updated with {#push}
@@ -63,7 +62,7 @@ module MetaRuby::GUI
 
             # Creates a new Page object
             #
-            # @param [Qt::WebPage,HTMLPage] page
+            # @param [Qt::WebPage,HTMLPage,TextEditPage] page
             def initialize(page)
                 super()
                 @page = page
@@ -77,6 +76,11 @@ module MetaRuby::GUI
                     page.link_delegation_policy = Qt::WebPage::DelegateAllLinks
                     Qt::Object.connect(
                         page, SIGNAL("linkClicked(const QUrl&)"),
+                        self, SLOT("pageLinkClicked(const QUrl&)")
+                    )
+                elsif page.kind_of?(Qt::TextBrowser)
+                    Qt::Object.connect(
+                        page, SIGNAL("anchorClicked(const QUrl&)"),
                         self, SLOT("pageLinkClicked(const QUrl&)")
                     )
                 end
@@ -203,7 +207,7 @@ module MetaRuby::GUI
             # @see render_list
             LIST_TEMPLATE = File.join(RESSOURCES_DIR, "list.rhtml")
             # Assets (CSS, javascript) that are included in every page
-            ASSETS = %w[page.css jquery.min.js jquery.selectfilter.js]
+            ASSETS = %w[page.css]
 
             # Copy the assets to a target directory
             #
@@ -211,10 +215,6 @@ module MetaRuby::GUI
             # Page class, by providing a different ressource dir to e.g. {#html}
             # or {#html_body} and copying the assets to it.
             def self.copy_assets_to(target_dir, assets = ASSETS)
-                FileUtils.mkdir_p target_dir
-                assets.each do |file|
-                    FileUtils.cp File.join(RESSOURCES_DIR, file), target_dir
-                end
             end
 
             # Lazy loads a template
@@ -247,8 +247,8 @@ module MetaRuby::GUI
 
             # Removes all existing displays
             def clear
-                page.main_frame.html = ""
                 fragments.clear
+                update_html
             end
 
             def scale_attribute(node, name, scale)
@@ -259,7 +259,12 @@ module MetaRuby::GUI
 
             # Generate the HTML and update the underlying {#page}
             def update_html
-                page.main_frame.html = html
+                html = self.html
+                if @page.respond_to?(:main_frame)
+                    @page.main_frame.html = html
+                else
+                    @page.html = html
+                end
             end
 
             # Generate the HTML

@@ -1,11 +1,3 @@
-<% if filter %>
-<script type="text/javascript">
-  jQuery(document).ready(function(){
-  jQuery("div#<%= id %>-list").selectFilter();
-});
-</script>
-<% end %>
-
 <div name="index_filter" id="<%= id %>-list">
 <%
 items.each_with_index do |(data, attributes), index|

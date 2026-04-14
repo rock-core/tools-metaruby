@@ -7,7 +7,7 @@ module MetaRuby
         #
         # @deprecated use {HTML::Page} and {HTML::Page#push_exception} directly
         # instead
-        class ExceptionView < Qt::WebView
+        class ExceptionView < Qt::TextBrowser
             attr_reader :displayed_exceptions
 
             # @return [HTML::Page] the page object that allows to infer
@@ -23,18 +23,10 @@ module MetaRuby
                 @displayed_exceptions = []
                 self.focus_policy = Qt::NoFocus
 
-                @metaruby_page = HTML::Page.new(page)
+                @metaruby_page = HTML::Page.new(self)
                 connect(@metaruby_page, SIGNAL("fileOpenClicked(const QUrl&)"),
                         self, SLOT("fileOpenClicked(const QUrl&)"))
                 @exception_rendering = ExceptionRendering.new(metaruby_page)
-
-                return unless ENV["METARUBY_GUI_DEBUG_HTML"]
-
-                page.settings.setAttribute(Qt::WebSettings::DeveloperExtrasEnabled,
-                                           true)
-                @inspector = Qt::WebInspector.new
-                @inspector.page = page
-                @inspector.show
             end
 
             def user_file_filter=(filter)
