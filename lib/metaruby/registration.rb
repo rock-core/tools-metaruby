@@ -42,7 +42,7 @@ module MetaRuby
                 true
             else
                 begin
-                    enclosing_context = constant("::#{definition_context_name}")
+                    enclosing_context = const_get("::#{definition_context_name}")
                     !enclosing_context.respond_to?(:permanent_model?) || enclosing_context.permanent_model?
                 rescue NameError
                     false
@@ -56,7 +56,7 @@ module MetaRuby
             return false if !object.respond_to?(:name) || !object.name
 
             begin
-                constant("::#{object.name}") == object
+                const_get("::#{object.name}") == object
             rescue NameError
                 false
             end
@@ -152,7 +152,7 @@ module MetaRuby
         # It assumes that calling #name on the object returns the place in the
         # constant hierarchy where it is stored
         def self.deregister_constant(obj)
-            constant("::#{obj.spacename}").send(:remove_const, obj.basename)
+            const_get("::#{obj.spacename}").send(:remove_const, obj.basename)
         end
 
         # Recursively deregisters all non-permanent submodels
